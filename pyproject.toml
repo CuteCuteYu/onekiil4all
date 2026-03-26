@@ -1,0 +1,14 @@
+[project]
+name = "onekiil4all"
+version = "0.1.0"
+description = "AI 联网搜索问答系统 - 使用 LangChain + 智谱 GLM-4.7 + Searx"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-community>=0.3.0",
+    "langchain-core>=0.3.0",
+    "requests>=2.31.0",
+    "deepagents==0.5.0a2",
+    "ipykernel>=7.2.0",
+]
