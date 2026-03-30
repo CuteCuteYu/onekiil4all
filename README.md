@@ -1,22 +1,20 @@
 # Onekiil4all
 
-AI 联网搜索问答系统 - 基于 LangChain + DeepSeek + Searx 构建的智能助手
+AI 智能助手 - 基于 LangChain + DeepSeek 构建
 
 ## 项目简介
 
-Onekiil4all 是一个功能强大的 AI 联网搜索问答系统，支持：
+Onekiil4all 是一个功能强大的 AI 助手，支持：
 
 - **智能对话**：基于 DeepSeek 大语言模型
-- **联网搜索**：集成 Searx 隐私搜索
 - **任务管理**：自动生成和管理 TODO 列表
-- **工具调用**：支持多种工具（文件操作、命令执行、网页搜索等）
+- **工具调用**：支持多种工具（文件操作、命令执行等）
 - **Web 界面**：现代化的响应式前端界面
 
 ## 技术栈
 
 - **后端**：Python 3.11+, FastAPI, LangChain, LangGraph
 - **AI 模型**：DeepSeek Chat API
-- **搜索**：Searx (隐私搜索)
 - **前端**：原生 HTML/CSS/JavaScript
 - **架构**：Agent 架构，支持工具调用和自动迭代
 
@@ -68,7 +66,6 @@ onekiil4all/
 | 工具名称 | 功能描述 |
 |---------|---------|
 | run_powershell | 执行 PowerShell 命令 |
-| web_search | 联网搜索信息 |
 | read_file | 读取文件内容 |
 | write_file | 写入文件内容 |
 | edit_file | 编辑文件 |
@@ -146,7 +143,6 @@ uv run python -m web.web_server
 
 系统会自动判断是否需要调用工具：
 
-- 搜索信息：调用 web_search
 - 读写文件：调用 file 相关工具
 - 执行命令：调用 run_powershell
 
@@ -221,5 +217,4 @@ MIT License
 
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM 应用框架
 - [DeepSeek](https://www.deepseek.com/) - 大语言模型
-- [Searx](https://searx.github.io/searx/) - 隐私搜索
 - [DeepAgents](https://github.com/deepagents) - Agent 框架
