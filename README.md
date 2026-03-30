@@ -27,7 +27,8 @@ onekiil4all/
 │   ├── chat_handler.py       # 聊天处理器
 │   ├── conversation.py       # 对话管理
 │   ├── task_analyzer.py      # 任务分析器
-│   └── todo_manager.py       # TODO 管理器
+│   ├── todo_manager.py       # TODO 管理器
+│   └── trends.py             # 热搜数据获取
 ├── agent_set/                # Agent 组件
 │   ├── agent_set.py          # Agent 创建
 │   ├── tools_set.py          # 工具集定义
@@ -66,19 +67,27 @@ onekiil4all/
 | 工具名称 | 功能描述 |
 |---------|---------|
 | run_powershell | 执行 PowerShell 命令 |
-| read_file | 读取文件内容 |
 | write_file | 写入文件内容 |
-| edit_file | 编辑文件 |
-| glob | 查找文件 |
-| grep | 搜索文件内容 |
+| read_text_file | 读取文本文件内容 |
+| read_binary_file | 读取二进制文件内容 |
+| fetch_rss_feed | 获取并解析 RSS/Atom 订阅源 |
+| web_search | 使用 DuckDuckGo 搜索网络 |
 
-### 4. 前端界面特性
+### 4. 情报分析面板
 
-- **可调整侧边栏**：鼠标拖动调整宽度
+- **INTELLIGENCE 面板**：展示热门搜索和科技资讯
+  - HOT：聚合多个平台的热门热搜（百度、微博、知乎、抖音、B站等）
+  - GITHUB：GitHub Trending 项目
+  - TECH：科技新闻（少数派、36氪、掘金、V2EX、Hacker News）
+- 所有条目可点击跳转原始页面
+
+### 5. 前端界面特性
+
 - **实时进度显示**：工具调用、任务状态实时更新
 - **响应式设计**：适配不同屏幕尺寸
-- **TODO 面板**：右侧边栏显示当前任务
-- **技能/工具面板**：查看可用能力
+- **左侧边栏**：显示 HISTORY + TODO + CAPABILITIES
+- **右侧边栏**：INTELLIGENCE 情报面板（占据 50% 宽度）
+- **聊天区域**：占据 33% 宽度
 
 ## 快速开始
 
@@ -186,6 +195,7 @@ model = ChatOpenAI(
 | `/api/todo` | GET | 获取 TODO 列表 |
 | `/api/skills` | GET | 获取可用技能 |
 | `/api/tools` | GET | 获取可用工具 |
+| `/api/trends` | GET | 获取热门搜索和情报信息 |
 
 ## 常见问题
 
