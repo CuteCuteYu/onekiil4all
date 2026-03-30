@@ -5,7 +5,7 @@
 
 import time
 from typing import Optional
-from conversation import get_todo_manager
+from web.conversation import get_todo_manager
 
 # 缓存最近的任务状态检查结果，避免重复调用 AI
 _task_cache = {}

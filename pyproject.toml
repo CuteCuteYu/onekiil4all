@@ -1,7 +1,7 @@
 [project]
 name = "onekiil4all"
 version = "0.1.0"
-description = "AI 联网搜索问答系统 - 使用 LangChain + 智谱 GLM-4.7 + Searx"
+description = "AI 联网搜索问答系统 - 使用 LangChain + DeepSeek + Searx"
 requires-python = ">=3.11,<4.0"
 dependencies = [
     "langchain>=0.3.0",

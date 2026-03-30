@@ -14,14 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from chat_handler import chat_handler
-from conversation import (
+from web.chat_handler import chat_handler
+from web.conversation import (
     new_chat,
     create_todo_for_request,
     get_thread_id,
     get_todo_manager,
 )
-from task_analyzer import check_task_completed
+from web.task_analyzer import check_task_completed
 
 
 @contextmanager
@@ -129,8 +129,12 @@ def stream_chat_response(message: str, thread_id: str | None):
                 not session.get("last_thread_id") or session["last_thread_id"] != tid
             )
 
+            # 判断是否需要创建 TODO（输入字符 >= 20 时才创建）
+            message_length = len(message.strip())
+            need_todo = is_first_message and message_length >= 20
+
             todo_items = []
-            if is_first_message:
+            if need_todo:
                 yield f"data: {json.dumps({'type': 'status', 'message': '正在创建任务清单...'})}\n\n"
                 todos = create_todo_for_request(message)
                 todo_items = [{"description": t, "completed": False} for t in todos]
@@ -140,7 +144,10 @@ def stream_chat_response(message: str, thread_id: str | None):
                 yield f"data: {json.dumps({'type': 'todo_created', 'items': todo_items})}\n\n"
 
             # 初始响应
-            yield f"data: {json.dumps({'type': 'status', 'message': 'AI 正在思考...'})}\n\n"
+            status_msg = (
+                "AI 正在思考..." if not need_todo else "AI 正在按任务清单执行..."
+            )
+            yield f"data: {json.dumps({'type': 'status', 'message': status_msg})}\n\n"
 
             # 使用同步聊天方法，但实时发送工具调用事件
             response, details = chat_handler.chat(message)
@@ -435,7 +442,7 @@ def save_chat_message(
 
 def get_todo_manager_by_tid(thread_id: str):
     """根据 thread_id 获取 TODO 管理器"""
-    from todo_manager import TodoManager
+    from web.todo_manager import TodoManager
 
     return TodoManager(thread_id)
 
@@ -443,4 +450,4 @@ def get_todo_manager_by_tid(thread_id: str):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("web_server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("web.web_server:app", host="0.0.0.0", port=8000, reload=True)

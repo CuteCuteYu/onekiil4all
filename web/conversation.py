@@ -2,8 +2,9 @@
 对话管理模块
 负责对话线程的管理
 """
-from chat_handler import chat_handler
-from todo_manager import TodoManager
+
+from web.chat_handler import chat_handler
+from web.todo_manager import TodoManager
 
 
 def new_chat():
