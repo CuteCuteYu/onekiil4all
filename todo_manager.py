@@ -90,7 +90,7 @@ class TodoManager:
             content += "> AI 正在分析任务，请稍后...\n"
         else:
             for task in tasks:
-                status = "[x]" if task.get("completed", False) else "[ ]"
+                status = "[+]" if task.get("completed", False) else "[-]"
                 content += f"{status} {task.get('description', '')}\n"
 
         with open(self.todo_file, 'w', encoding='utf-8') as f:
@@ -113,9 +113,9 @@ class TodoManager:
         tasks = []
         for line in content.split('\n'):
             line = line.strip()
-            if line.startswith('[x]'):
+            if line.startswith('[+]'):
                 tasks.append({"description": line[3:].strip(), "completed": True})
-            elif line.startswith('[ ]'):
+            elif line.startswith('[-]'):
                 tasks.append({"description": line[3:].strip(), "completed": False})
 
         return tasks, content
@@ -226,7 +226,7 @@ AI 最新响应: {response}
         print(f"进度: {progress}")
 
         for i, task in enumerate(tasks, 1):
-            status = "[✓]" if task.get("completed", False) else "[ ]"
+            status = "[+]" if task.get("completed", False) else "[-]"
             desc = task.get("description", "")
             print(f"  {i}. {status} {desc}")
 

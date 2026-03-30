@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>onekiil4all</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Left Sidebar: History -->
+  <aside class="sidebar-left">
+    <div class="sidebar-header">
+      <span class="sidebar-title">HISTORY</span>
+      <button class="btn-icon" id="btn-refresh-history">REFRESH</button>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="history-empty">no history</div>
+    </div>
+  </aside>
+
+  <!-- Main Content: Chat -->
+  <main class="main-content">
+    <header class="header">
+      <div class="header-title">onekiil4all</div>
+      <div class="header-right">
+        <span class="thread-badge" id="thread-badge"></span>
+        <button class="btn-new" id="btn-new">NEW</button>
+      </div>
+    </header>
+
+    <div class="messages" id="messages">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-state-title">onekiil4all</div>
+        <div class="empty-state-sub">send a message to begin</div>
+      </div>
+    </div>
+
+    <div class="loading-line" id="loading">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      <span id="loading-text">processing</span>
+    </div>
+
+    <!-- Pending Input Queue -->
+    <div class="pending-queue" id="pending-queue" style="display:none;">
+      <div class="pending-header">
+        <span>PENDING</span>
+        <button class="btn-clear" id="btn-clear-pending">CLEAR</button>
+      </div>
+      <div class="pending-list" id="pending-list"></div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="msg-input" placeholder="type a message..." rows="1"></textarea>
+        <button class="btn-send" id="btn-send">SEND</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right Sidebar: TODO + Skills/Tools -->
+  <aside class="sidebar-right">
+    <!-- Top: TODO -->
+    <div class="todo-panel">
+      <div class="panel-header">
+        <span class="panel-title">TODO</span>
+        <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
+      </div>
+      <div class="todo-content" id="todo-content">
+        <div class="todo-empty">no active task</div>
+      </div>
+    </div>
+
+    <!-- Bottom: Skills/Tools -->
+    <div class="tools-panel">
+      <div class="panel-header">
+        <span class="panel-title">CAPABILITIES</span>
+      </div>
+      <div class="tools-tabs">
+        <button class="tab-btn active" data-tab="skills">SKILLS</button>
+        <button class="tab-btn" data-tab="tools">TOOLS</button>
+      </div>
+      <div class="tools-content" id="tools-content">
+        <div class="tab-panel active" id="tab-skills">
+          <div class="skills-list" id="skills-list">
+            <div class="list-loading">loading...</div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-tools">
+          <div class="tools-list" id="tools-list">
+            <div class="list-loading">loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

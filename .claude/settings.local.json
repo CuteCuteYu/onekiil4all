@@ -3,7 +3,9 @@
     "allow": [
       "Bash(uv add:*)",
       "Bash(ls -la D:/code/ai/onekiil4all/*.py)",
-      "Bash(dir /B D:codeaionekiil4all*.py)"
+      "Bash(dir /B D:codeaionekiil4all*.py)",
+      "Bash(uv run:*)",
+      "Bash(node -c D:/code/ai/onekiil4all/static/app.js)"
     ]
   }
 }

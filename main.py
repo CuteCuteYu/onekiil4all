@@ -2,20 +2,23 @@
 主程序入口
 交互式聊天主循环
 """
+
 from chat_handler import chat_handler
 from conversation import (
     new_chat,
     create_todo_for_request,
     get_thread_id,
-    get_todo_manager
+    get_todo_manager,
 )
-from task_analyzer import check_task_completed, generate_summary
+from task_analyzer import check_task_completed
 
 # 最大自动迭代次数
 MAX_AUTO_ITERATIONS = 5
 
 
-def run_auto_iteration(current_request: str, response: str, last_action: str = "") -> tuple[int, bool, str]:
+def run_auto_iteration(
+    current_request: str, response: str, last_action: str = ""
+) -> tuple[int, bool, str]:
     """
     运行自动迭代检查和执行
 
@@ -41,15 +44,13 @@ def run_auto_iteration(current_request: str, response: str, last_action: str = "
             return iteration, True, current_last_action
 
         if completed:
-            # 任务完成，生成总结
-            summary, sum_interrupted = generate_summary(current_request, response)
-            if summary:
-                print(f"\n总结: {summary}")
-            if sum_interrupted:
-                print("\n[已中断] 回到主循环")
-                return iteration, True, current_last_action
             if next_action:
                 print(f"\n[说明] {next_action}")
+            todo_mgr = get_todo_manager()
+            if todo_mgr.exists():
+                todo_mgr.display_todo("任务完成")
+                todo_mgr.delete_todo()
+                print("[完成] TODO 列表已清除")
             break
 
         if next_action:
@@ -66,13 +67,6 @@ def run_auto_iteration(current_request: str, response: str, last_action: str = "
             current_last_action = next_action
             iteration += 1
         else:
-            # 没有明确的下一步行动，生成总结并等待用户输入
-            summary, sum_interrupted = generate_summary(current_request, response)
-            if summary:
-                print(f"\n总结: {summary}")
-            if sum_interrupted:
-                print("\n[已中断] 回到主循环")
-                return iteration, True, current_last_action
             break
 
     return iteration, False, current_last_action
@@ -94,11 +88,11 @@ def main():
         if not user_input:
             continue
 
-        if user_input.lower() in ('quit', 'exit', 'q'):
+        if user_input.lower() in ("quit", "exit", "q"):
             print("再见！")
             break
 
-        if user_input.lower() == '/new':
+        if user_input.lower() == "/new":
             new_chat()
             last_thread_id = get_thread_id()
             continue
@@ -106,7 +100,7 @@ def main():
         current_thread_id = get_thread_id()
 
         # 检测是否是新对话的第一次输入
-        is_first_message = (last_thread_id != current_thread_id)
+        is_first_message = last_thread_id != current_thread_id
 
         # 如果是新对话的第一次输入，创建 TODO 列表
         if is_first_message:
@@ -122,7 +116,7 @@ def main():
 
         # 获取工具调用作为 last_action
         last_action = ""
-        if details.get('tool_calls_made'):
+        if details.get("tool_calls_made"):
             last_action = f"调用工具: {', '.join([tc['name'] for tc in details['tool_calls_made']])}"
 
         # 自动检查并继续执行
@@ -131,8 +125,10 @@ def main():
         )
 
         if iteration >= MAX_AUTO_ITERATIONS:
-            print(f"\n[提示] 已达到最大自动执行次数({MAX_AUTO_ITERATIONS})，请确认是否需要继续。")
+            print(
+                f"\n[提示] 已达到最大自动执行次数({MAX_AUTO_ITERATIONS})，请确认是否需要继续。"
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
