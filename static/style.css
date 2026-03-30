@@ -1,173 +1,261 @@
+/**
+ * onekiil4all 应用程序样式表
+ * 描述: 定义整个应用的视觉风格和布局
+ * 作者: onekiil4all
+ * 主题: 深色极简主义风格，采用暗色调配色方案
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   CSS重置与基础设置
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 全局选择器重置
+ * 清除所有元素默认的margin和padding
+ * 设置box-sizing为border-box，便于尺寸计算
+ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
+/**
+ * CSS自定义属性 (CSS Variables)
+ * 定义全局可复用的颜色、字体、尺寸等值
+ */
 :root {
-  --bg: #09090b;
-  --bg-elevated: #111113;
-  --bg-surface: #18181b;
-  --fg: #d4d4d8;
-  --fg-muted: #71717a;
-  --fg-dim: #3f3f46;
-  --accent: #a1a1aa;
-  --line: #27272a;
-  --line-active: #52525b;
-  --serif: 'Instrument Serif', Georgia, serif;
-  --mono: 'DM Mono', 'Consolas', monospace;
-  --left-width: 17%;
-  --main-width: 33%;
-  --right-width: 50%;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
+  /* 背景色 - 深色主题 */
+  --bg: #09090b;              /* 主背景色 - 接近黑色的深灰 */
+  --bg-elevated: #111113;      /* 提升层背景色 - 稍浅的深灰 */
+  --bg-surface: #18181b;       /* 表面层背景色 - 用于卡片等元素 */
+  
+  /* 前景色 - 文本颜色 */
+  --fg: #d4d4d8;               /* 主文本色 - 浅灰色 */
+  --fg-muted: #71717a;        /* 弱化文本色 - 中灰色 */
+  --fg-dim: #3f3f46;          /* 暗淡文本色 - 深灰色 */
+  
+  /* 强调色 */
+  --accent: #a1a1aa;          /* 强调色 - 浅灰色 */
+  
+  /* 边框线颜色 */
+  --line: #27272a;            /* 默认边框色 */
+  --line-active: #52525b;     /* 激活状态边框色 */
+  
+  /* 字体 */
+  --serif: 'Instrument Serif', Georgia, serif;   /* 衬线字体 - 用于标题 */
+  --mono: 'DM Mono', 'Consolas', monospace;      /* 等宽字体 - 用于代码和正文 */
+  
+  /* 布局宽度比例 */
+  --left-width: 17%;           /* 左侧边栏宽度 */
+  --main-width: 33%;           /* 主内容区宽度 */
+  --right-width: 50%;         /* 右侧边栏宽度 */
+  
+  /* 状态颜色 */
+  --success: #10b981;          /* 成功 - 绿色 */
+  --warning: #f59e0b;          /* 警告 - 橙色 */
+  --error: #ef4444;            /* 错误 - 红色 */
+  
+  /* 拖拽条宽度 */
   --resizer-width: 4px;
 }
 
+/**
+ * html和body基础样式
+ * 设置全屏高度、背景色、字体等
+ */
 html, body {
-  height: 100%;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.7;
-  -webkit-font-smoothing: antialiased;
-  overflow: hidden;
+  height: 100%;                /* 占满视口高度 */
+  background: var(--bg);       /* 使用背景变量 */
+  color: var(--fg);            /* 使用前景色变量 */
+  font-family: var(--mono);    /* 使用等宽字体 */
+  font-size: 12px;            /* 基础字号 */
+  line-height: 1.7;           /* 行高 */
+  -webkit-font-smoothing: antialiased; /* 字体抗锯齿 */
+  overflow: hidden;           /* 禁止页面滚动 */
 }
 
-/* ── layout ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   布局样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 主应用容器
+ * 使用CSS Grid三栏布局
+ */
 #app {
   display: grid;
   grid-template-columns: var(--left-width) var(--main-width) var(--right-width);
-  height: 100vh;
+  height: 100vh;               /* 占满视口高度 */
   overflow: hidden;
 }
 
-/* ── resizer (drag handles) ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   拖拽条 (侧边栏调整大小)
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 拖拽条基础样式
+ * 默认隐藏，鼠标悬停或激活时显示
+ */
 .resizer {
-  display: none;
+  display: none;               /* 默认不显示 */
 }
 
 .resizer:hover,
 .resizer.active {
-  background: var(--accent);
+  background: var(--accent);  /* 悬停或激活时显示强调色 */
 }
 
+/* 左侧第一个拖拽条 - intelligence侧边栏 */
 .resizer-left {
   left: var(--intelligence-width);
 }
 
+/* 左侧第二个拖拽条 - history侧边栏 */
 .resizer-left-2 {
   left: calc(var(--intelligence-width) + var(--sidebar-width));
 }
 
+/* 右侧拖拽条 */
 .resizer-right {
   right: var(--right-sidebar-width);
 }
 
-/* ── sidebars ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   侧边栏通用样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 左右侧边栏容器
+ * 使用flex列布局
+ */
 .sidebar-left, .sidebar-right {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  border-right: 1px solid var(--line);
-  background: var(--bg-elevated);
+  flex-direction: column;     /* 垂直排列子元素 */
+  min-width: 0;               /* 防止flex子元素溢出 */
+  overflow: hidden;           /* 隐藏溢出内容 */
+  border-right: 1px solid var(--line);  /* 左侧边框 */
+  background: var(--bg-elevated);        /* 提升层背景 */
   height: 100%;
 }
 
+/**
+ * 右侧边栏特殊处理
+ * 左边框改为无，右边框显示
+ */
 .sidebar-right {
   border-right: none;
   border-left: 1px solid var(--line);
 }
 
+/**
+ * 侧边栏头部和面板头部
+ * 固定高度，内边距，底部边框
+ */
 .sidebar-header, .panel-header {
-  flex-shrink: 0;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;             /* 不允许收缩 */
+  padding: 12px 16px;          /* 内边距 */
+  border-bottom: 1px solid var(--line);  /* 底部边框 */
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: space-between; /* 两端对齐 */
+  align-items: center;         /* 垂直居中 */
 }
 
+/**
+ * 侧边栏标题文字样式
+ * 小字号，大写字母，字间距
+ */
 .sidebar-title, .panel-title {
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
+  font-size: 10px;            /* 小字号 */
+  letter-spacing: 0.12em;     /* 大字间距 */
+  text-transform: uppercase;  /* 转为大写 */
+  color: var(--fg-dim);        /* 暗淡颜色 */
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   按钮样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 图标按钮 (刷新等小按钮)
+ */
 .btn-icon {
-  background: none;
-  border: none;
-  color: var(--fg-dim);
+  background: none;           /* 无背景 */
+  border: none;               /* 无边框 */
+  color: var(--fg-dim);       /* 暗淡颜色 */
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
-  cursor: pointer;
-  transition: color .2s;
+  font-size: 9px;            /* 很小字号 */
+  letter-spacing: 0.05em;    /* 小字间距 */
+  padding: 2px 6px;           /* 小内边距 */
+  cursor: pointer;           /* 手型光标 */
+  transition: color .2s;      /* 颜色过渡动画 */
 }
 .btn-icon:hover {
-  color: var(--fg-muted);
+  color: var(--fg-muted);     /* 悬停时变亮 */
 }
 
 
+/* ═══════════════════════════════════════════════════════════════
+   历史记录列表
+   ═══════════════════════════════════════════════════════════════ */
 
-/* ── history list ── */
-
+/**
+ * 历史记录列表容器
+ * 可滚动，flex填充剩余空间
+ */
 .history-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  flex: 1;                   /* 填充剩余空间 */
+  min-height: 0;             /* 允许收缩到0 */
+  overflow-y: auto;           /* 垂直滚动 */
+  overflow-x: hidden;        /* 水平隐藏 */
   padding: 8px;
 }
 
-/* ── main content ── */
-
-.main-content {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-  max-width: 100%;
-  width: 100%;
-}
-
+/* 滚动条样式 - Webkit浏览器 */
 .history-list::-webkit-scrollbar {
-  width: 3px;
+  width: 3px;                /* 窄滚动条 */
 }
 .history-list::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent;   /* 透明轨道 */
 }
 .history-list::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: var(--line);   /* 滚动条颜色 */
 }
 
+/**
+ * 空状态提示
+ */
 .history-empty {
   padding: 20px;
-  text-align: center;
+  text-align: center;        /* 居中 */
   color: var(--fg-dim);
   font-size: 11px;
 }
 
+/**
+ * 历史记录项
+ * 可点击，带悬停效果
+ */
 .history-item {
   padding: 8px 10px;
   margin-bottom: 4px;
-  border-left: 2px solid transparent;
+  border-left: 2px solid transparent;  /* 透明左边框 */
   cursor: pointer;
-  transition: border-color .2s, background .2s;
+  transition: border-color .2s, background .2s;  /* 过渡动画 */
 }
 .history-item:hover {
-  border-left-color: var(--line-active);
-  background: var(--bg-surface);
+  border-left-color: var(--line-active);  /* 悬停显示边框 */
+  background: var(--bg-surface);          /* 悬停背景变亮 */
 }
 .history-item.active {
-  border-left-color: var(--fg-muted);
+  border-left-color: var(--fg-muted);      /* 激活状态边框 */
   background: var(--bg-surface);
 }
 
+/**
+ * 历史记录项内的文字样式
+ */
 .history-item-thread {
   font-size: 9px;
   color: var(--fg-dim);
@@ -178,57 +266,81 @@ html, body {
 .history-item-preview {
   font-size: 11px;
   color: var(--fg-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;        /* 单行显示 */
+  overflow: hidden;           /* 溢出隐藏 */
+  text-overflow: ellipsis;    /* 省略号 */
 }
 
+/**
+ * 历史记录删除按钮
+ */
 .history-item-delete {
-  float: right;
+  float: right;               /* 右浮动 */
   color: var(--fg-dim);
   font-size: 9px;
   cursor: pointer;
   padding: 2px 4px;
 }
 .history-item-delete:hover {
-  color: var(--fg);
+  color: var(--fg);           /* 悬停变亮 */
 }
 
-/* ── main content ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   主内容区域
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 主内容区容器
+ * flex列布局
+ */
 .main-content {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
   max-width: 100%;
+  width: 100%;
 }
 
-/* ── header ── */
+
+/* ═══════════════════════════════════════════════════════════════
+   头部样式
+   ═══════════════════════════════════════════════════════════════ */
 
 .header {
-  flex-shrink: 0;
+  flex-shrink: 0;             /* 不收缩 */
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: baseline;      /* 基线对齐 */
 }
 
+/**
+ * 头部标题
+ * 使用衬线字体
+ */
 .header-title {
   font-family: var(--serif);
   font-size: 20px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-weight: 400;           /* 正常粗细 */
+  letter-spacing: -0.02em;   /* 负字间距 */
   color: var(--fg);
 }
 
+/**
+ * 头部右侧区域
+ */
 .header-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/**
+ * 线程ID徽章
+ */
 .thread-badge {
   font-size: 10px;
   color: var(--fg-dim);
@@ -239,6 +351,9 @@ html, body {
   white-space: nowrap;
 }
 
+/**
+ * 新建对话按钮
+ */
 .btn-new {
   background: none;
   border: 1px solid var(--line);
@@ -255,17 +370,25 @@ html, body {
   color: var(--fg);
 }
 
-/* ── messages ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   消息列表样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 消息容器
+ * 可滚动，flex填充
+ */
 .messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px 24px;
-  scroll-behavior: smooth;
+  scroll-behavior: smooth;     /* 平滑滚动 */
 }
 
+/* 滚动条样式 */
 .messages::-webkit-scrollbar {
   width: 3px;
 }
@@ -277,18 +400,33 @@ html, body {
   border-radius: 2px;
 }
 
-/* ── message block ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   消息块样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 消息基本块
+ * 带入场动画
+ */
 .msg {
   margin-bottom: 24px;
-  animation: msgIn .3s ease-out both;
+  animation: msgIn .3s ease-out both;  /* 入场动画 */
 }
 
+/**
+ * 消息入场动画
+ * 从下方淡入
+ */
 @keyframes msgIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/**
+ * 消息角色标签
+ * 显示消息发送者 (YOU / ASSISTANT / TOOLS 等)
+ */
 .msg-role {
   font-size: 9px;
   letter-spacing: 0.12em;
@@ -300,23 +438,38 @@ html, body {
   gap: 8px;
 }
 
+/**
+ * 消息角色标签后的分隔线
+ */
 .msg-role::after {
   content: '';
-  flex: 1;
+  flex: 1;                   /* 填充剩余空间 */
   height: 1px;
   background: var(--line);
 }
 
-.msg-role-user { color: var(--fg-muted); }
+/**
+ * 用户消息角色颜色
+ */
+.msg-role_user { color: var(--fg-muted); }
 
-/* ── markdown content ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   Markdown内容样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 消息体基础样式
+ */
 .msg-body {
   padding: 2px 0;
   max-width: 100%;
   overflow-x: auto;
 }
 
+/**
+ * 段落样式
+ */
 .msg-body p {
   margin-bottom: 10px;
 }
@@ -324,6 +477,10 @@ html, body {
   margin-bottom: 0;
 }
 
+/**
+ * 标题样式 (h1-h6)
+ * 使用衬线字体
+ */
 .msg-body h1, .msg-body h2, .msg-body h3,
 .msg-body h4, .msg-body h5, .msg-body h6 {
   font-family: var(--serif);
@@ -336,6 +493,9 @@ html, body {
 .msg-body h2 { font-size: 15px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .msg-body h3 { font-size: 13px; }
 
+/**
+ * 列表样式
+ */
 .msg-body ul, .msg-body ol {
   padding-left: 18px;
   margin-bottom: 10px;
@@ -347,6 +507,9 @@ html, body {
   color: var(--fg-dim);
 }
 
+/**
+ * 引用块样式
+ */
 .msg-body blockquote {
   border-left: 2px solid var(--line-active);
   padding-left: 12px;
@@ -355,6 +518,9 @@ html, body {
   font-style: italic;
 }
 
+/**
+ * 行内代码样式
+ */
 .msg-body code {
   font-family: var(--mono);
   font-size: 11px;
@@ -364,6 +530,9 @@ html, body {
   color: var(--fg);
 }
 
+/**
+ * 代码块样式
+ */
 .msg-body pre {
   background: var(--bg-surface);
   border: 1px solid var(--line);
@@ -379,6 +548,9 @@ html, body {
   line-height: 1.5;
 }
 
+/**
+ * 链接样式
+ */
 .msg-body a {
   color: var(--fg-muted);
   text-decoration: underline;
@@ -390,6 +562,9 @@ html, body {
   color: var(--fg);
 }
 
+/**
+ * 表格样式
+ */
 .msg-body table {
   border-collapse: collapse;
   width: 100%;
@@ -407,14 +582,23 @@ html, body {
   font-weight: 500;
 }
 
+/**
+ * 分割线样式
+ */
 .msg-body hr {
   border: none;
   border-top: 1px solid var(--line);
   margin: 16px 0;
 }
 
-/* ── tool call ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   工具调用样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 工具调用显示块
+ */
 .tool-call {
   margin: 6px 0;
   padding: 5px 10px;
@@ -424,8 +608,15 @@ html, body {
   letter-spacing: 0.02em;
 }
 
-/* ── iteration & summary ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   迭代块与摘要块样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 迭代/继续块
+ * 显示任务自动继续执行的内容
+ */
 .iteration-block {
   margin: 10px 0;
   padding: 6px 12px;
@@ -444,6 +635,10 @@ html, body {
   color: var(--fg-muted);
 }
 
+/**
+ * 摘要块
+ * 用于显示最终响应摘要
+ */
 .summary-block {
   margin: 12px 0;
   padding: 8px 12px;
@@ -454,12 +649,21 @@ html, body {
   font-style: italic;
 }
 
-/* ── tool calls ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   工具调用列表样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 工具调用容器
+ */
 .tool-calls-container {
   margin-bottom: 16px;
 }
 
+/**
+ * 工具调用标题
+ */
 .tool-call-header {
   font-size: 11px;
   color: var(--fg-muted);
@@ -467,6 +671,10 @@ html, body {
   margin-bottom: 8px;
 }
 
+/**
+ * 单个工具调用项
+ * 带入场动画
+ */
 .tool-call-item {
   animation: fadeInUp 0.3s ease-out;
   margin-bottom: 8px;
@@ -479,34 +687,49 @@ html, body {
   font-size: 10px;
 }
 
+/**
+ * 工具调用内容区
+ */
 .tool-call-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+/**
+ * 工具名称
+ */
 .tool-call-name {
   font-weight: 500;
   color: var(--fg);
   font-size: 12px;
 }
 
+/**
+ * 工具描述
+ */
 .tool-call-desc {
   font-size: 11px;
   color: var(--fg-muted);
   font-style: italic;
 }
 
+/**
+ * 工具执行状态
+ */
 .tool-call-status {
   font-size: 10px;
   color: var(--success);
   padding: 2px 6px;
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.1);  /* 绿色透明背景 */
   border-radius: 3px;
   display: inline-block;
   margin-top: 4px;
 }
 
+/**
+ * 淡入上移动画
+ */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -518,8 +741,14 @@ html, body {
   }
 }
 
-/* ── pending queue ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   待发送队列样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 待发送消息队列面板
+ */
 .pending-queue {
   flex-shrink: 0;
   padding: 10px 16px;
@@ -527,6 +756,9 @@ html, body {
   background: var(--bg-elevated);
 }
 
+/**
+ * 待发送队列头部
+ */
 .pending-header {
   display: flex;
   justify-content: space-between;
@@ -538,6 +770,9 @@ html, body {
   color: var(--fg-dim);
 }
 
+/**
+ * 清空按钮
+ */
 .btn-clear {
   background: none;
   border: none;
@@ -550,12 +785,18 @@ html, body {
   color: var(--fg);
 }
 
+/**
+ * 待发送消息列表
+ */
 .pending-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+/**
+ * 待发送消息项
+ */
 .pending-item {
   padding: 6px 10px;
   border: 1px solid var(--line);
@@ -564,8 +805,14 @@ html, body {
   color: var(--fg-muted);
 }
 
-/* ── input area ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   输入区域样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 输入区容器
+ */
 .input-area {
   flex-shrink: 0;
   padding: 12px 24px 16px;
@@ -575,24 +822,30 @@ html, body {
   position: relative;
 }
 
+/**
+ * 输入行容器
+ */
 .input-row {
   display: flex;
   gap: 0;
   align-items: stretch;
 }
 
+/**
+ * 消息输入框
+ */
 #msg-input {
-  flex: 1;
+  flex: 1;                    /* 占据剩余空间 */
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);  /* 底部边框 */
   color: var(--fg);
   font-family: var(--mono);
   font-size: 12px;
   padding: 8px 0;
-  outline: none;
+  outline: none;              /* 无聚焦轮廓 */
   transition: border-color .2s;
-  resize: none;
+  resize: none;               /* 禁止拖拽调整大小 */
   min-height: 18px;
   max-height: 100px;
   pointer-events: auto;
@@ -600,12 +853,15 @@ html, body {
   visibility: visible;
 }
 #msg-input::placeholder {
-  color: var(--fg-dim);
+  color: var(--fg-dim);       /* 占位符颜色 */
 }
 #msg-input:focus {
-  border-color: var(--line-active);
+  border-color: var(--line-active);  /* 聚焦时边框变亮 */
 }
 
+/**
+ * 发送按钮
+ */
 .btn-send {
   background: none;
   border: none;
@@ -628,20 +884,30 @@ html, body {
   cursor: default;
 }
 
-/* ── loading ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   加载状态样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 加载指示器容器
+ */
 .loading-line {
-  display: none;
+  display: none;              /* 默认隐藏 */
   align-items: center;
   gap: 10px;
   padding: 8px 24px;
   color: var(--fg-dim);
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing:0.06em;
 }
 .loading-line.active {
-  display: flex;
+  display: flex;             /* 激活时显示 */
 }
+
+/**
+ * 加载动画圆点
+ */
 .loading-dots {
   display: flex;
   gap: 3px;
@@ -650,18 +916,28 @@ html, body {
   width: 3px;
   height: 3px;
   background: var(--fg-dim);
-  animation: dotPulse 1.2s ease-in-out infinite;
+  animation: dotPulse 1.2s ease-in-out infinite;  /* 脉冲动画 */
 }
 .loading-dots span:nth-child(2) { animation-delay: .15s; }
 .loading-dots span:nth-child(3) { animation-delay: .3s; }
 
+/**
+ * 圆点脉冲动画
+ */
 @keyframes dotPulse {
   0%, 80%, 100% { opacity: .2; }
   40% { opacity: 1; }
 }
 
-/* ── empty state ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   空状态样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 空状态容器
+ * 垂直水平居中
+ */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -681,8 +957,14 @@ html, body {
   letter-spacing: 0.08em;
 }
 
-/* ── todo panel ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   待办事项面板样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 待办事项面板容器
+ */
 .todo-panel {
   flex: 1;
   display: flex;
@@ -692,12 +974,18 @@ html, body {
   overflow: hidden;
 }
 
+/**
+ * 待办事项内容区
+ */
 .todo-content {
   flex: 1;
   overflow-y: auto;
   padding: 10px 12px;
 }
 
+/**
+ * 空状态
+ */
 .todo-empty {
   padding: 20px;
   text-align: center;
@@ -705,12 +993,18 @@ html, body {
   font-size: 10px;
 }
 
+/**
+ * 待办事项块
+ */
 .todo-block {
   border: 1px solid var(--line);
   padding: 10px 12px;
   margin-bottom: 8px;
 }
 
+/**
+ * 待办事项头部
+ */
 .todo-header {
   display: flex;
   justify-content: space-between;
@@ -722,6 +1016,9 @@ html, body {
   color: var(--fg-dim);
 }
 
+/**
+ * 进度条容器
+ */
 .todo-progress-bar {
   width: 50px;
   height: 2px;
@@ -734,6 +1031,9 @@ html, body {
   transition: width .3s ease;
 }
 
+/**
+ * 待办事项项
+ */
 .todo-item {
   display: flex;
   align-items: baseline;
@@ -744,8 +1044,12 @@ html, body {
 }
 .todo-item.completed {
   color: var(--fg-dim);
-  text-decoration: line-through;
+  text-decoration: line-through;  /* 删除线 */
 }
+
+/**
+ * 复选框
+ */
 .todo-check {
   width: 10px;
   height: 10px;
@@ -768,8 +1072,14 @@ html, body {
   opacity: 1;
 }
 
-/* ── tools panel ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   技能/工具面板样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 技能/工具面板容器
+ */
 .tools-panel {
   flex: 1;
   display: flex;
@@ -778,11 +1088,17 @@ html, body {
   overflow: hidden;
 }
 
+/**
+ * 标签页按钮容器
+ */
 .tools-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
 }
 
+/**
+ * 标签页按钮
+ */
 .tab-btn {
   flex: 1;
   background: none;
@@ -804,11 +1120,18 @@ html, body {
   border-bottom-color: var(--fg-muted);
 }
 
+/**
+ * 技能/工具内容区
+ */
 .tools-content {
   flex: 1;
   overflow-y: auto;
 }
 
+/**
+ * 标签面板
+ * 默认隐藏，激活时显示
+ */
 .tab-panel {
   display: none;
   padding: 10px 12px;
@@ -817,6 +1140,9 @@ html, body {
   display: block;
 }
 
+/**
+ * 加载中提示
+ */
 .list-loading {
   color: var(--fg-dim);
   font-size: 10px;
@@ -824,6 +1150,9 @@ html, body {
   padding: 20px;
 }
 
+/**
+ * 技能/工具项
+ */
 .skill-item, .tool-item {
   padding: 8px 10px;
   margin-bottom: 4px;
@@ -840,8 +1169,14 @@ html, body {
   line-height: 1.4;
 }
 
-/* ── intelligence panel ── */
 
+/* ═══════════════════════════════════════════════════════════════
+   热点资讯面板样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 热点资讯面板容器
+ */
 .intelligence-panel {
   flex: 1;
   display: flex;
@@ -851,30 +1186,48 @@ html, body {
   overflow: hidden;
 }
 
+/**
+ * 热点资讯标签容器
+ */
 .intelligence-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
 }
 
+/**
+ * 热点资讯内容区
+ */
 .intelligence-content {
   flex: 1;
   overflow-y: auto;
 }
 
+/**
+ * 趋势列表
+ */
 .trends-list {
   padding: 8px 10px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap;           /* 允许换行 */
   gap: 12px;
 }
 
+/**
+ * 趋势分组
+ */
 .trend-group {
   flex: 1;
   min-width: 200px;
   max-width: 300px;
   margin-bottom: 0;
 }
+.trend-group {
+  margin-bottom: 12px;
+}
 
+/**
+ * 趋势分组头部
+ */
 .trend-group-header {
   font-size: 10px;
   font-weight: 500;
@@ -886,54 +1239,45 @@ html, body {
   letter-spacing: 0.05em;
 }
 
+/**
+ * 趋势项
+ */
 .trend-item {
   padding: 6px 8px;
   margin-bottom: 4px;
   border: 1px solid var(--line);
   transition: border-color .2s, background .2s;
 }
-
-.trend-group {
-  margin-bottom: 12px;
-}
-
-.trend-group-header {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  padding: 6px 8px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--line);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .trend-item:hover {
   border-color: var(--line-active);
   background: var(--bg-surface);
 }
 
+/**
+ * 趋势项标题
+ */
 .trend-item-title {
   font-size: 10px;
   color: var(--fg);
   line-height: 1.4;
   word-break: break-word;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 2;      /* 最多显示2行 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .trend-item-title a {
   color: var(--fg);
   text-decoration: none;
 }
-
 .trend-item-title a:hover {
   text-decoration: underline;
   color: var(--fg-muted);
 }
 
+/**
+ * 趋势项元信息
+ */
 .trend-item-meta {
   font-size: 9px;
   color: var(--fg-dim);
@@ -942,35 +1286,33 @@ html, body {
   gap: 8px;
   align-items: center;
 }
-
 .trend-item-rank {
   color: var(--fg-dim);
   font-size: 9px;
   min-width: 16px;
 }
 
+/**
+ * GitHub趋势项
+ */
 .trend-item-github {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
 .trend-item-github-name {
   font-size: 10px;
   color: var(--fg);
   font-weight: 500;
 }
-
 .trend-item-github-name a {
   color: var(--fg);
   text-decoration: none;
 }
-
 .trend-item-github-name a:hover {
   text-decoration: underline;
   color: var(--fg-muted);
 }
-
 .trend-item-github-desc {
   font-size: 9px;
   color: var(--fg-muted);
@@ -981,7 +1323,6 @@ html, body {
   overflow: hidden;
   margin-top: 2px;
 }
-
 .trend-item-github-stats {
   display: flex;
   gap: 10px;
@@ -989,17 +1330,14 @@ html, body {
   font-size: 9px;
   color: var(--fg-dim);
 }
-
 .trend-item-github-stars::before {
   content: "★ ";
 }
-
 .trend-item-github-lang {
   display: flex;
   align-items: center;
   gap: 4px;
 }
-
 .trend-item-github-lang::before {
   content: "";
   width: 8px;
@@ -1008,6 +1346,9 @@ html, body {
   background: var(--accent);
 }
 
+/**
+ * 加载错误提示
+ */
 .list-error {
   color: var(--error);
   font-size: 10px;
@@ -1015,6 +1356,9 @@ html, body {
   padding: 20px;
 }
 
+/**
+ * 来源标签
+ */
 .trend-source-tag {
   font-size: 8px;
   color: var(--fg-dim);

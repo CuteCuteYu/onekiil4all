@@ -1,33 +1,52 @@
 """
-任务分析模块
-负责检查任务完成状态（高效版）
+========================================
+Task Analyzer - 任务分析模块
+========================================
+功能: 检查任务完成状态，判断是否需要继续执行
+作者: onekiil4all
 """
+
+# ═══════════════════════════════════════════════════════════════
+# 导入标准库和项目模块
+# ═══════════════════════════════════════════════════════════════
 
 import time
 from typing import Optional
 from web.conversation import get_todo_manager
 
-# 缓存最近的任务状态检查结果，避免重复调用 AI
-_task_cache = {}
-_CACHE_TIMEOUT = 30  # 缓存30秒
+# ═══════════════════════════════════════════════════════════════
+# 任务状态缓存
+# 用于缓存最近的任务状态检查结果，避免重复调用AI
+# ═══════════════════════════════════════════════════════════════
+
+_task_cache = {}  # 缓存字典
+_CACHE_TIMEOUT = 30  # 缓存超时时间（秒）
+
+
+# ═══════════════════════════════════════════════════════════════
+# 核心函数
+# ═══════════════════════════════════════════════════════════════
 
 
 def check_task_completed(
     response: str, user_request: str, last_action: str = ""
 ) -> tuple[bool, str, bool]:
     """
-    高效检查任务是否已完成，调用 AI 更新 TODO 状态
+    高效检查任务是否已完成，调用AI更新TODO状态
 
-    Args:
-        response: 助手最新回复
+    这是主要入口函数，用于在每次AI响应后检查任务完成情况
+
+    参数:
+        response: 助手最新回复内容
         user_request: 用户原始请求
         last_action: 最后执行的操作
 
-    Returns:
-        (是否完成, 下一步指令或解释, 是否被用户打断)
+    返回:
+        tuple: (是否完成, 下一步指令或解释, 是否被用户打断)
     """
     print("\n[正在判断是否继续执行中...] (按 ESC 打断)")
 
+    # 获取TODO管理器
     todo_mgr = get_todo_manager()
     tasks, todo_content = todo_mgr.read_todo()
 
@@ -35,12 +54,12 @@ def check_task_completed(
     print(f"[调试] TODO 文件存在: {todo_mgr.exists()}")
     print(f"[调试] 读取的任务数: {len(tasks)}")
 
-    # 如果没有 TODO，默认已完成
+    # 如果没有TODO，默认任务已完成
     if not todo_mgr.exists() or not tasks:
         print("[检查] 无 TODO 任务，默认已完成")
         return True, "", False
 
-    # 检查缓存
+    # 检查缓存（避免重复调用AI）
     cache_key = f"{todo_mgr.thread_id}:{hash(response[:100])}:{hash(last_action)}"
     current_time = time.time()
 
@@ -50,16 +69,16 @@ def check_task_completed(
             print("[检查] 使用缓存结果")
             return cached_result
 
-    # 调用 AI 更新 TODO 状态
+    # 调用AI更新TODO状态
     print("[检查] 正在分析任务完成状态...")
 
     try:
-        # 使用高效的提示词，让 AI 快速判断
+        # 使用高效的提示词，让AI快速判断
         updated_tasks, all_completed = _efficient_update_todo(
             todo_mgr, response, last_action
         )
 
-        # 显示更新后的 TODO
+        # 显示更新后的TODO
         todo_mgr.display_todo("当前进度")
 
         # 调试：打印任务状态
@@ -94,7 +113,17 @@ def _efficient_update_todo(
     todo_mgr, response: str, last_action: str
 ) -> tuple[list[dict], bool]:
     """
-    高效更新 TODO 状态，使用优化的提示词
+    高效更新TODO状态，使用优化的提示词
+
+    使用更精简的提示词和更小的max_tokens加快响应速度
+
+    参数:
+        todo_mgr: TODO管理器实例
+        response: AI响应内容
+        last_action: 最后操作
+
+    返回:
+        tuple: (更新后的任务列表, 是否全部完成)
     """
     from model_set import model_set
 
@@ -127,7 +156,7 @@ AI最新响应摘要：{response[:300]}
 只返回列表，不要其他内容。"""
 
     try:
-        # 使用较小的 max_tokens 加快响应
+        # 使用较小的max_tokens加快响应
         result = model_set.model.invoke(prompt, max_tokens=50)
         content = result.content.strip()
 
@@ -164,6 +193,16 @@ AI最新响应摘要：{response[:300]}
 def _generate_next_action(tasks: list[dict], response: str, user_request: str) -> str:
     """
     生成下一步指令
+
+    找出第一个未完成的任务，生成继续执行的指令
+
+    参数:
+        tasks: 任务列表
+        response: AI响应
+        user_request: 用户请求
+
+    返回:
+        下一步操作指令字符串
     """
     # 找出第一个未完成的任务
     for task in tasks:
@@ -177,6 +216,15 @@ def _generate_next_action(tasks: list[dict], response: str, user_request: str) -
 def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str, bool]:
     """
     简化检查（回退方案）
+
+    当AI分析失败时使用的备选检查方法
+
+    参数:
+        todo_mgr: TODO管理器
+        tasks: 任务列表
+
+    返回:
+        tuple: (是否完成, 下一步指令, 是否中断)
     """
     todo_mgr.display_todo("当前任务清单")
 
@@ -194,6 +242,11 @@ def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str, bool]:
 def _clean_old_cache(current_time: float):
     """
     清理过期缓存
+
+    定期清理超过超时时间的缓存条目
+
+    参数:
+        current_time: 当前时间戳
     """
     global _task_cache
     expired_keys = [

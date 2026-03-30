@@ -1,138 +1,189 @@
 <!DOCTYPE html>
+<!--
+  onekiil4all - AI 助手聊天界面主页面
+  作者: onekiil4all
+  描述: 一个支持多功能的AI对话应用，包含聊天、历史记录、任务列表、技能展示和热点趋势等功能
+-->
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>onekiil4all</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
-<link rel="stylesheet" href="/static/style.css">
+  <!-- 页面字符编码设置，使用UTF-8确保中文正常显示 -->
+  <meta charset="UTF-8">
+  <!-- 视口设置，支持移动端响应式布局 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 页面标题 -->
+  <title>onekiil4all</title>
+  
+  <!-- 预连接Google Fonts以提高字体加载速度 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- 引入Google Fonts: DM Mono (等宽字体) 和 Instrument Serif (衬线字体) -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  
+  <!-- 引入highlight.js代码高亮主题 (GitHub Dark Dimmed) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
+  <!-- 引入本地自定义样式文件 -->
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div id="app">
-  <!-- Left Sidebar: History + TODO + Capabilities -->
-  <aside class="sidebar-left">
-    <!-- History -->
-    <div class="sidebar-header">
-      <span class="sidebar-title">HISTORY</span>
-      <button class="btn-icon" id="btn-refresh-history">REFRESH</button>
-    </div>
-    <div class="history-list" id="history-list">
-      <div class="history-empty">no history</div>
-    </div>
+  <!-- 主应用容器，使用CSS Grid布局 -->
+  <div id="app">
+    <!-- 左侧边栏：包含历史记录、待办事项和技能/工具面板 -->
+    <aside class="sidebar-left">
+      <!-- 历史记录面板 -->
+      <div class="sidebar-header">
+        <!-- 历史记录标题 -->
+        <span class="sidebar-title">HISTORY</span>
+        <!-- 刷新历史记录按钮 -->
+        <button class="btn-icon" id="btn-refresh-history">REFRESH</button>
+      </div>
+      <!-- 历史记录列表容器 -->
+      <div class="history-list" id="history-list">
+        <!-- 空状态提示 -->
+        <div class="history-empty">no history</div>
+      </div>
 
-    <!-- TODO -->
-    <div class="todo-panel">
-      <div class="panel-header">
-        <span class="panel-title">TODO</span>
-        <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
-      </div>
-      <div class="todo-content" id="todo-content">
-        <div class="todo-empty">no active task</div>
-      </div>
-    </div>
-
-    <!-- Capabilities -->
-    <div class="tools-panel">
-      <div class="panel-header">
-        <span class="panel-title">CAPABILITIES</span>
-      </div>
-      <div class="tools-tabs">
-        <button class="tab-btn active" data-tab="skills">SKILLS</button>
-        <button class="tab-btn" data-tab="tools">TOOLS</button>
-      </div>
-      <div class="tools-content" id="tools-content">
-        <div class="tab-panel active" id="tab-skills">
-          <div class="skills-list" id="skills-list">
-            <div class="list-loading">loading...</div>
-          </div>
+      <!-- TODO 待办事项面板 -->
+      <div class="todo-panel">
+        <div class="panel-header">
+          <!-- 待办事项标题 -->
+          <span class="panel-title">TODO</span>
+          <!-- 刷新待办事项按钮 -->
+          <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
         </div>
-        <div class="tab-panel" id="tab-tools">
-          <div class="tools-list" id="tools-list">
-            <div class="list-loading">loading...</div>
-          </div>
+        <!-- 待办事项内容容器 -->
+        <div class="todo-content" id="todo-content">
+          <div class="todo-empty">no active task</div>
         </div>
       </div>
-    </div>
-  </aside>
 
-  <!-- Main Content: Chat -->
-  <main class="main-content">
-    <header class="header">
-      <div class="header-title">onekiil4all</div>
-      <div class="header-right">
-        <span class="thread-badge" id="thread-badge"></span>
-        <button class="btn-new" id="btn-new">NEW</button>
-      </div>
-    </header>
-
-    <div class="messages" id="messages">
-      <div class="empty-state" id="empty-state">
-        <div class="empty-state-title">onekiil4all</div>
-        <div class="empty-state-sub">send a message to begin</div>
-      </div>
-    </div>
-
-    <div class="loading-line" id="loading">
-      <div class="loading-dots"><span></span><span></span><span></span></div>
-      <span id="loading-text">processing</span>
-    </div>
-
-    <!-- Pending Input Queue -->
-    <div class="pending-queue" id="pending-queue" style="display:none;">
-      <div class="pending-header">
-        <span>PENDING</span>
-        <button class="btn-clear" id="btn-clear-pending">CLEAR</button>
-      </div>
-      <div class="pending-list" id="pending-list"></div>
-    </div>
-
-    <div class="input-area">
-      <div class="input-row">
-        <textarea id="msg-input" placeholder="type a message..." rows="1"></textarea>
-        <button class="btn-send" id="btn-send">SEND</button>
-      </div>
-    </div>
-  </main>
-
-  <!-- Right Sidebar: Intelligence -->
-  <aside class="sidebar-right">
-    <!-- Intelligence Panel -->
-    <div class="intelligence-panel">
-      <div class="panel-header">
-        <span class="panel-title">INTELLIGENCE</span>
-        <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
-      </div>
-      <div class="intelligence-tabs">
-        <button class="tab-btn active" data-tab="hotsearch">HOT</button>
-        <button class="tab-btn" data-tab="github">GITHUB</button>
-        <button class="tab-btn" data-tab="tech">TECH</button>
-      </div>
-      <div class="intelligence-content" id="intelligence-content">
-        <div class="tab-panel active" id="tab-hotsearch">
-          <div class="trends-list" id="hotsearch-list">
-            <div class="list-loading">loading...</div>
-          </div>
+      <!-- 技能和工具面板 -->
+      <div class="tools-panel">
+        <div class="panel-header">
+          <span class="panel-title">CAPABILITIES</span>
         </div>
-        <div class="tab-panel" id="tab-github">
-          <div class="trends-list" id="github-list">
-            <div class="list-loading">loading...</div>
-          </div>
+        <!-- 标签页切换按钮 (技能/工具) -->
+        <div class="tools-tabs">
+          <button class="tab-btn active" data-tab="skills">SKILLS</button>
+          <button class="tab-btn" data-tab="tools">TOOLS</button>
         </div>
-        <div class="tab-panel" id="tab-tech">
-          <div class="trends-list" id="tech-list">
-            <div class="list-loading">loading...</div>
+        <!-- 技能/工具内容区域 -->
+        <div class="tools-content" id="tools-content">
+          <!-- 技能列表面板 -->
+          <div class="tab-panel active" id="tab-skills">
+            <div class="skills-list" id="skills-list">
+              <div class="list-loading">loading...</div>
+            </div>
+          </div>
+          <!-- 工具列表面板 -->
+          <div class="tab-panel" id="tab-tools">
+            <div class="tools-list" id="tools-list">
+              <div class="list-loading">loading...</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </aside>
-</div>
+    </aside>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
-<script src="/static/app.js"></script>
+    <!-- 主内容区域：聊天界面 -->
+    <main class="main-content">
+      <!-- 页面头部 -->
+      <header class="header">
+        <!-- 应用标题 -->
+        <div class="header-title">onekiil4all</div>
+        <!-- 头部右侧区域 -->
+        <div class="header-right">
+          <!-- 当前对话线程ID徽章 -->
+          <span class="thread-badge" id="thread-badge"></span>
+          <!-- 新建对话按钮 -->
+          <button class="btn-new" id="btn-new">NEW</button>
+        </div>
+      </header>
+
+      <!-- 消息列表容器 -->
+      <div class="messages" id="messages">
+        <!-- 空状态显示 -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-state-title">onekiil4all</div>
+          <div class="empty-state-sub">send a message to begin</div>
+        </div>
+      </div>
+
+      <!-- 加载状态指示器 -->
+      <div class="loading-line" id="loading">
+        <!-- 加载动画 - 三个圆点 -->
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <!-- 加载状态文本 -->
+        <span id="loading-text">processing</span>
+      </div>
+
+      <!-- 待发送消息队列 - 当AI忙碌时暂存用户消息 -->
+      <div class="pending-queue" id="pending-queue" style="display:none;">
+        <div class="pending-header">
+          <span>PENDING</span>
+          <!-- 清空待发送队列按钮 -->
+          <button class="btn-clear" id="btn-clear-pending">CLEAR</button>
+        </div>
+        <!-- 待发送消息列表 -->
+        <div class="pending-list" id="pending-list"></div>
+      </div>
+
+      <!-- 消息输入区域 -->
+      <div class="input-area">
+        <div class="input-row">
+          <!-- 文本输入框，支持多行输入 -->
+          <textarea id="msg-input" placeholder="type a message..." rows="1"></textarea>
+          <!-- 发送消息按钮 -->
+          <button class="btn-send" id="btn-send">SEND</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧边栏：热点资讯面板 -->
+    <aside class="sidebar-right">
+      <!-- 热点资讯面板 -->
+      <div class="intelligence-panel">
+        <div class="panel-header">
+          <span class="panel-title">INTELLIGENCE</span>
+          <!-- 刷新热点资讯按钮 -->
+          <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
+        </div>
+        <!-- 热点资讯标签页切换 (热搜/GitHub/科技新闻) -->
+        <div class="intelligence-tabs">
+          <button class="tab-btn active" data-tab="hotsearch">HOT</button>
+          <button class="tab-btn" data-tab="github">GITHUB</button>
+          <button class="tab-btn" data-tab="tech">TECH</button>
+        </div>
+        <!-- 热点资讯内容区域 -->
+        <div class="intelligence-content" id="intelligence-content">
+          <!-- 热搜榜单面板 -->
+          <div class="tab-panel active" id="tab-hotsearch">
+            <div class="trends-list" id="hotsearch-list">
+              <div class="list-loading">loading...</div>
+            </div>
+          </div>
+          <!-- GitHub趋势面板 -->
+          <div class="tab-panel" id="tab-github">
+            <div class="trends-list" id="github-list">
+              <div class="list-loading">loading...</div>
+            </div>
+          </div>
+          <!-- 科技新闻面板 -->
+          <div class="tab-panel" id="tab-tech">
+            <div class="trends-list" id="tech-list">
+              <div class="list-loading">loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 引入外部JavaScript库 -->
+  <!-- marked.js - Markdown解析库 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- highlight.js - 代码高亮库 -->
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
+  <!-- 引入应用程序主JavaScript文件 -->
+  <script src="/static/app.js"></script>
 </body>
 </html>

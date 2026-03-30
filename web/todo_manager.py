@@ -1,40 +1,67 @@
 """
-TODO 管理模块
-负责 TODO 列表的创建、更新和检查
+========================================
+Todo Manager - 待办事项管理模块
+========================================
+功能: 负责TODO列表的创建、更新、读取和删除
+作者: onekiil4all
 """
+
+# ═══════════════════════════════════════════════════════════════
+# 导入标准库和项目模块
+# ═══════════════════════════════════════════════════════════════
+
 import os
 import json
 from pathlib import Path
 from model_set import model_set
 
+# 获取AI模型实例
 model = model_set.model
 
-# TODO 目录
+# TODO文件存储目录
 TODO_DIR = "todo"
 
 
+# ═══════════════════════════════════════════════════════════════
+# TodoManager 类 - TODO管理器
+# ═══════════════════════════════════════════════════════════════
+
+
 class TodoManager:
-    """TODO 管理器"""
+    """
+    TODO列表管理器
+
+    负责在指定线程下创建、更新、读取和删除TODO任务
+    TODO以Markdown格式存储在文件中
+    """
 
     def __init__(self, thread_id: str):
+        """
+        初始化TODO管理器
+
+        参数:
+            thread_id: 线程ID，用于区分不同的对话会话
+        """
         self.thread_id = thread_id
-        self.todo_dir = Path(TODO_DIR) / thread_id
-        self.todo_file = self.todo_dir / "todo.md"
+        self.todo_dir = Path(TODO_DIR) / thread_id  # TODO目录
+        self.todo_file = self.todo_dir / "todo.md"  # TODO文件路径
 
     def create_todo(self, user_request: str) -> list[str]:
         """
-        创建 TODO 列表
+        创建TODO列表
 
-        Args:
-            user_request: 用户请求
+        根据用户请求，让AI生成任务清单
 
-        Returns:
-            TODO 列表项
+        参数:
+            user_request: 用户请求内容
+
+        返回:
+            TODO列表项描述字符串列表
         """
-        # 创建目录
+        # 创建TODO目录
         self.todo_dir.mkdir(parents=True, exist_ok=True)
 
-        # 让 AI 生成 TODO 列表
+        # 构建生成TODO的提示词
         prompt = f"""基于以下用户请求，生成一个任务清单（TODO列表）。
 
 用户请求: {user_request}
@@ -56,89 +83,105 @@ class TodoManager:
 只返回JSON，不要其他内容。"""
 
         try:
+            # 调用AI生成TODO
             result = model.invoke(prompt)
             content = result.content
 
-            # 提取 JSON
+            # 提取JSON部分（处理可能的代码块格式）
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
                 content = content.split("```")[1].split("```")[0].strip()
 
+            # 解析JSON
             data = json.loads(content)
             tasks = data.get("tasks", [])
 
-            # 保存为 Markdown 文件
+            # 保存为Markdown文件
             self._save_todo_md(tasks)
             return [t.get("description", "") for t in tasks]
         except (json.JSONDecodeError, KeyError):
-            # 失败时创建空 TODO
+            # 失败时创建空TODO
             self._save_todo_md([])
             return []
 
     def _save_todo_md(self, tasks: list[dict]):
         """
-        保存 TODO 为 Markdown 文件
+        保存TODO为Markdown文件
 
-        Args:
+        参数:
             tasks: 任务列表，每个任务包含 id, description, completed
         """
+        # 构建文件头部
         content = f"# TODO 列表 - Thread: {self.thread_id}\n\n"
         content += f"## 任务清单\n\n"
 
         if not tasks:
             content += "> AI 正在分析任务，请稍后...\n"
         else:
+            # 遍历任务，构建列表
             for task in tasks:
+                # [+]表示已完成，[-]表示未完成
                 status = "[+]" if task.get("completed", False) else "[-]"
                 content += f"{status} {task.get('description', '')}\n"
 
-        with open(self.todo_file, 'w', encoding='utf-8') as f:
+        # 写入文件
+        with open(self.todo_file, "w", encoding="utf-8") as f:
             f.write(content)
 
     def read_todo(self) -> tuple[list[dict], str]:
         """
-        读取 TODO 列表
+        读取TODO列表
 
-        Returns:
-            (任务列表, 文件内容)
+        返回:
+            tuple: (任务列表, 文件原始内容)
+            - 任务列表: 包含description和completed的字典列表
         """
         if not self.todo_file.exists():
             return [], ""
 
-        with open(self.todo_file, 'r', encoding='utf-8') as f:
+        # 读取文件内容
+        with open(self.todo_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # 解析 Markdown 文件
+        # 解析Markdown文件
         tasks = []
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             line = line.strip()
-            if line.startswith('[+]'):
+            # [+]表示已完成
+            if line.startswith("[+]"):
                 tasks.append({"description": line[3:].strip(), "completed": True})
-            elif line.startswith('[-]'):
+            # [-]表示未完成
+            elif line.startswith("[-]"):
                 tasks.append({"description": line[3:].strip(), "completed": False})
 
         return tasks, content
 
-    def update_todo(self, response: str, last_action: str = "") -> tuple[list[dict], bool]:
+    def update_todo(
+        self, response: str, last_action: str = ""
+    ) -> tuple[list[dict], bool]:
         """
-        更新 TODO 列表状态
+        更新TODO列表状态
 
-        Args:
-            response: AI 最新响应
+        让AI根据最新响应判断哪些任务已完成
+
+        参数:
+            response: AI最新响应内容
             last_action: 最后执行的操作
 
-        Returns:
-            (更新后的任务列表, 是否全部完成)
+        返回:
+            tuple: (更新后的任务列表, 是否全部完成)
         """
         tasks, _ = self.read_todo()
 
         if not tasks:
             return tasks, False
 
-        # 让 AI 判断哪些任务已完成
+        # 构建任务状态更新的提示词
         tasks_str = "\n".join([f"- {t['description']}" for t in tasks])
-        completed_str = "\n".join([f"- {t['description']}" for t in tasks if t['completed']])
+        completed_str = "\n".join(
+            [f"- {t['description']}" for t in tasks if t["completed"]]
+        )
 
         prompt = f"""根据以下信息，更新任务清单的完成状态。
 
@@ -167,10 +210,11 @@ AI 最新响应: {response}
 只返回JSON，不要其他内容。"""
 
         try:
+            # 调用AI更新状态
             result = model.invoke(prompt)
             content = result.content
 
-            # 提取 JSON
+            # 提取JSON
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
@@ -190,24 +234,25 @@ AI 最新响应: {response}
             return tasks, False
 
     def delete_todo(self):
-        """删除 TODO 目录和文件"""
+        """删除TODO目录和文件"""
         if self.todo_dir.exists():
             import shutil
+
             shutil.rmtree(self.todo_dir)
 
     def exists(self) -> bool:
-        """检查 TODO 文件是否存在"""
+        """检查TODO文件是否存在"""
         return self.todo_file.exists()
 
     def get_file_path(self) -> str:
-        """获取 TODO 文件路径"""
+        """获取TODO文件路径"""
         return str(self.todo_file)
 
     def display_todo(self, title: str = "TODO 列表"):
         """
-        在终端显示 TODO 内容
+        在终端显示TODO内容
 
-        Args:
+        参数:
             title: 显示标题
         """
         tasks, content = self.read_todo()
@@ -215,6 +260,7 @@ AI 最新响应: {response}
         if not tasks:
             return
 
+        # 打印标题和分隔线
         print(f"\n[{title}]")
         print("-" * 50)
 
@@ -225,6 +271,7 @@ AI 最新响应: {response}
 
         print(f"进度: {progress}")
 
+        # 逐个显示任务
         for i, task in enumerate(tasks, 1):
             status = "[+]" if task.get("completed", False) else "[-]"
             desc = task.get("description", "")

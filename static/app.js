@@ -1,63 +1,155 @@
-// ── config ──
+/**
+ * onekiil4all 应用程序主脚本
+ * 负责处理前端聊天界面与后端API的所有交互
+ * 包含功能：消息发送/接收、历史记录管理、待办事项、工具调用、热点资讯等
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// 配置部分
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * API基础URL
+ * 为空字符串表示使用相对路径，当前域名的API端点
+ */
 const API = '';
+
+/**
+ * 轮询间隔时间 (毫秒)
+ * 用于定期刷新待办事项和热点资讯
+ */
 const POLL_INTERVAL = 2000;
 
-// ── state ──
+
+// ═══════════════════════════════════════════════════════════════
+// 状态管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 当前对话线程的唯一标识符
+ * 用于区分不同的聊天会话
+ */
 let threadId = null;
+
+/**
+ * 忙碌状态标志
+ * 当AI正在处理请求时为true，此时用户输入会被放入待发送队列
+ */
 let busy = false;
+
+/**
+ * 待发送消息队列
+ * 当AI忙碌时，用户输入的消息会暂存到这里
+ */
 let pendingMessages = [];
+
+/**
+ * 待办事项轮询定时器
+ * 用于定期获取待办事项更新
+ */
 let todoPollInterval = null;
+
+/**
+ * 当前请求的AbortController
+ * 用于取消正在进行的API请求
+ */
 let currentAbortController = null;
 
-// ── dom ──
-const $messages = document.getElementById('messages');
-const $input = document.getElementById('msg-input');
-const $send = document.getElementById('btn-send');
-const $loading = document.getElementById('loading');
-const $loadingText = document.getElementById('loading-text');
-const $threadBadge = document.getElementById('thread-badge');
-const $btnNew = document.getElementById('btn-new');
-const $historyList = document.getElementById('history-list');
-const $todoContent = document.getElementById('todo-content');
-const $skillsList = document.getElementById('skills-list');
-const $toolsList = document.getElementById('tools-list');
-const $pendingQueue = document.getElementById('pending-queue');
-const $pendingList = document.getElementById('pending-list');
-const $btnClearPending = document.getElementById('btn-clear-pending');
-const $btnRefreshHistory = document.getElementById('btn-refresh-history');
-const $btnRefreshTodo = document.getElementById('btn-refresh-todo');
-const $btnRefreshTrends = document.getElementById('btn-refresh-trends');
-const $hotsearchList = document.getElementById('hotsearch-list');
-const $githubList = document.getElementById('github-list');
-const $techList = document.getElementById('tech-list');
 
-// ── marked config ──
+// ═══════════════════════════════════════════════════════════════
+// DOM元素缓存
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 获取页面中所有需要操作的DOM元素
+ * 缓存这些元素以提高性能，避免重复查询
+ */
+const $messages = document.getElementById('messages');           // 消息列表容器
+const $input = document.getElementById('msg-input');              // 消息输入框
+const $send = document.getElementById('btn-send');                 // 发送按钮
+const $loading = document.getElementById('loading');               // 加载指示器
+const $loadingText = document.getElementById('loading-text');     // 加载状态文本
+const $threadBadge = document.getElementById('thread-badge');     // 线程ID徽章
+const $btnNew = document.getElementById('btn-new');               // 新建对话按钮
+const $historyList = document.getElementById('history-list');      // 历史记录列表
+const $todoContent = document.getElementById('todo-content');     // 待办事项内容
+const $skillsList = document.getElementById('skills-list');        // 技能列表
+const $toolsList = document.getElementById('tools-list');         // 工具列表
+const $pendingQueue = document.getElementById('pending-queue');   // 待发送队列
+const $pendingList = document.getElementById('pending-list');     // 待发送消息列表
+const $btnClearPending = document.getElementById('btn-clear-pending'); // 清空待发送按钮
+const $btnRefreshHistory = document.getElementById('btn-refresh-history'); // 刷新历史按钮
+const $btnRefreshTodo = document.getElementById('btn-refresh-todo'); // 刷新待办按钮
+const $btnRefreshTrends = document.getElementById('btn-refresh-trends'); // 刷新热点按钮
+const $hotsearchList = document.getElementById('hotsearch-list'); // 热搜列表
+const $githubList = document.getElementById('github-list');       // GitHub趋势列表
+const $techList = document.getElementById('tech-list');           // 科技新闻列表
+
+
+// ═══════════════════════════════════════════════════════════════
+// marked.js 配置
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 配置Markdown解析器 marked
+ * 设置代码高亮和Markdown渲染选项
+ */
 marked.setOptions({
+  /**
+   * 代码高亮函数
+   * @param {string} code - 代码内容
+   * @param {string} lang - 编程语言标识
+   * @returns {string} 高亮后的HTML
+   */
   highlight: (code, lang) => {
+    // 如果指定了语言且该语言支持，则使用对应语言高亮
     if (lang && hljs.getLanguage(lang)) {
       return hljs.highlight(code, { language: lang }).value;
     }
+    // 否则自动检测语言
     return hljs.highlightAuto(code).value;
   },
+  // 允许换行符转换为<br>标签
   breaks: true,
+  // 启用GitHub风格的Markdown
   gfm: true,
 });
 
-// ── helpers ──
+
+// ═══════════════════════════════════════════════════════════════
+// 辅助函数
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 将消息列表滚动到底部
+ * 确保最新消息始终可见
+ */
 function scrollToBottom() {
   $messages.scrollTop = $messages.scrollHeight;
 }
 
+/**
+ * 设置加载状态
+ * @param {boolean} on - 是否显示加载状态
+ * @param {string} text - 可选的加载状态文本
+ */
 function setLoading(on, text) {
   $loading.classList.toggle('active', on);
   if (text) $loadingText.textContent = text;
 }
 
+/**
+ * 添加进度消息
+ * 用于显示系统状态、警告、错误等信息
+ * @param {string} text - 消息内容
+ * @param {string} type - 消息类型: 'info', 'success', 'warning', 'error'
+ */
 function appendProgressMessage(text, type = 'info') {
   removeEmptyState();
   const el = document.createElement('div');
   el.className = 'msg';
   
+  // 根据消息类型设置不同的样式
   let role = 'INFO';
   let style = 'color: var(--fg-dim); font-style: italic;';
   
@@ -80,35 +172,70 @@ function appendProgressMessage(text, type = 'info') {
   scrollToBottom();
 }
 
+/**
+ * 设置忙碌状态
+ * 忙碌时禁用发送按钮，并将新消息加入待发送队列
+ * @param {boolean} on - 是否忙碌
+ */
 function setBusy(on) {
   busy = on;
   $send.disabled = on;
 }
 
+/**
+ * 更新当前对话线程
+ * @param {string} id - 新的线程ID
+ */
 function updateThread(id) {
   threadId = id;
+  // 显示线程ID的前8位
   $threadBadge.textContent = id ? id.slice(0, 8) : '';
+  // 启动待办事项轮询
   startTodoPolling();
+  // 加载历史记录
   loadHistory();
 }
 
+/**
+ * 移除空状态提示
+ * 当有消息时隐藏初始的空状态界面
+ */
 function removeEmptyState() {
   const el = document.getElementById('empty-state');
   if (el) el.remove();
 }
 
+/**
+ * HTML转义函数
+ * 防止XSS攻击，将特殊字符转换为HTML实体
+ * @param {string} s - 原始字符串
+ * @returns {string} 转义后的字符串
+ */
 function escapeHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
 }
 
+/**
+ * Markdown渲染函数
+ * 将Markdown文本转换为HTML
+ * @param {string} text - Markdown文本
+ * @returns {string} 渲染后的HTML
+ */
 function renderMarkdown(text) {
   return marked.parse(text);
 }
 
-// ── render functions ──
 
+// ═══════════════════════════════════════════════════════════════
+// 消息渲染函数
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 添加用户消息到界面
+ * @param {string} text - 用户输入的文本
+ */
 function appendUserMessage(text) {
   removeEmptyState();
   const el = document.createElement('div');
@@ -121,6 +248,10 @@ function appendUserMessage(text) {
   scrollToBottom();
 }
 
+/**
+ * 添加助手回复到界面
+ * @param {string} html - 渲染后的HTML内容
+ */
 function appendAssistantMessage(html) {
   const el = document.createElement('div');
   el.className = 'msg';
@@ -132,6 +263,11 @@ function appendAssistantMessage(html) {
   scrollToBottom();
 }
 
+/**
+ * 显示工具调用信息
+ * 展示AI正在调用的工具列表
+ * @param {Array} toolCalls - 工具调用数组
+ */
 function appendToolCalls(toolCalls) {
   if (!toolCalls || !toolCalls.length) return;
   
@@ -199,6 +335,16 @@ function appendToolCalls(toolCalls) {
   });
 }
 
+/**
+ * 添加单个工具调用显示
+ * 用于实时更新工具执行状态
+ * @param {string} toolName - 工具名称
+ * @param {string} description - 工具描述
+ * @param {string} status - 执行状态
+ * @param {number} index - 工具索引
+ * @param {number} total - 工具总数
+ * @returns {HTMLElement} 创建的元素
+ */
 function appendSingleToolCall(toolName, description = '', status = '', index = 0, total = 1) {
   removeEmptyState();
   const el = document.createElement('div');
@@ -216,6 +362,11 @@ function appendSingleToolCall(toolName, description = '', status = '', index = 0
   return el;
 }
 
+/**
+ * 处理工具调用事件
+ * 根据后端推送的工具调用事件更新界面
+ * @param {Object} event - 工具调用事件对象
+ */
 function handleToolCallEvent(event) {
   const toolName = event.name || '未知工具';
   const status = event.status || '';
@@ -288,6 +439,12 @@ function handleToolCallEvent(event) {
   }
 }
 
+/**
+ * 添加迭代/继续块
+ * 用于显示任务自动继续执行的内容
+ * @param {string} label - 块标签 (如 'AUTO CONTINUE', 'NOTE')
+ * @param {string} content - 块内容
+ */
 function appendIterationBlock(label, content) {
   const el = document.createElement('div');
   el.className = 'msg';
@@ -301,6 +458,11 @@ function appendIterationBlock(label, content) {
   scrollToBottom();
 }
 
+/**
+ * 添加摘要块
+ * 用于显示最终响应摘要
+ * @param {string} content - 摘要内容 (Markdown格式)
+ */
 function appendSummary(content) {
   const el = document.createElement('div');
   el.className = 'msg';
@@ -309,6 +471,10 @@ function appendSummary(content) {
   scrollToBottom();
 }
 
+/**
+ * 添加错误消息
+ * @param {string} msg - 错误信息
+ */
 function appendError(msg) {
   const el = document.createElement('div');
   el.className = 'msg';
@@ -320,8 +486,15 @@ function appendError(msg) {
   scrollToBottom();
 }
 
-// ── pending queue ──
 
+// ═══════════════════════════════════════════════════════════════
+// 待发送消息队列管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 更新待发送队列显示
+ * 根据pendingMessages数组重新渲染队列界面
+ */
 function updatePendingQueue() {
   if (pendingMessages.length === 0) {
     $pendingQueue.style.display = 'none';
@@ -335,16 +508,29 @@ function updatePendingQueue() {
   `).join('');
 }
 
+/**
+ * 添加消息到待发送队列
+ * 当AI忙碌时调用
+ * @param {string} text - 待发送的消息文本
+ */
 function addPendingMessage(text) {
   pendingMessages.push(text);
   updatePendingQueue();
 }
 
+/**
+ * 清空待发送队列
+ * 用户点击清空按钮时调用
+ */
 function clearPendingQueue() {
   pendingMessages = [];
   updatePendingQueue();
 }
 
+/**
+ * 发送待发送队列中的所有消息
+ * 按顺序逐条发送队列中的消息
+ */
 async function sendPendingMessages() {
   const messages = [...pendingMessages];
   pendingMessages = [];
@@ -355,8 +541,15 @@ async function sendPendingMessages() {
   }
 }
 
-// ── history ──
 
+// ═══════════════════════════════════════════════════════════════
+// 历史记录管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 加载对话历史记录列表
+ * 从API获取所有历史对话记录并显示在侧边栏
+ */
 async function loadHistory() {
   try {
     const res = await fetch(`${API}/api/history`);
@@ -375,6 +568,7 @@ async function loadHistory() {
       </div>
     `).join('');
 
+    // 绑定点击事件 - 加载历史对话
     $historyList.querySelectorAll('.history-item').forEach(el => {
       el.addEventListener('click', (e) => {
         if (e.target.classList.contains('history-item-delete')) return;
@@ -382,6 +576,7 @@ async function loadHistory() {
       });
     });
 
+    // 绑定删除事件
     $historyList.querySelectorAll('.history-item-delete').forEach(el => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -393,6 +588,10 @@ async function loadHistory() {
   }
 }
 
+/**
+ * 加载指定历史对话
+ * @param {string} tid - 线程ID
+ */
 async function loadChatHistory(tid) {
   try {
     const res = await fetch(`${API}/api/history/${tid}`);
@@ -442,6 +641,10 @@ async function loadChatHistory(tid) {
   }
 }
 
+/**
+ * 删除历史记录
+ * @param {string} tid - 要删除的线程ID
+ */
 async function deleteHistory(tid) {
   try {
     await fetch(`${API}/api/history/${tid}`, { method: 'DELETE' });
@@ -454,8 +657,15 @@ async function deleteHistory(tid) {
   }
 }
 
-// ── todo ──
 
+// ═══════════════════════════════════════════════════════════════
+// 待办事项管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 加载待办事项
+ * 根据当前线程ID从API获取待办任务列表
+ */
 async function loadTodo() {
   if (!threadId) return;
 
@@ -493,6 +703,11 @@ async function loadTodo() {
   }
 }
 
+/**
+ * 更新待办事项显示
+ * 用于实时更新待办任务状态
+ * @param {Object} todo - 待办事项对象
+ */
 function updateTodoDisplay(todo) {
   console.log('updateTodoDisplay called with:', todo);
   if (!todo || !todo.tasks || todo.tasks.length === 0) {
@@ -520,14 +735,25 @@ function updateTodoDisplay(todo) {
   console.log('Todo display updated');
 }
 
+/**
+ * 启动待办事项轮询
+ * 定期刷新待办事项状态
+ */
 function startTodoPolling() {
   if (todoPollInterval) clearInterval(todoPollInterval);
   loadTodo();
   todoPollInterval = setInterval(loadTodo, POLL_INTERVAL);
 }
 
-// ── skills & tools ──
 
+// ═══════════════════════════════════════════════════════════════
+// 技能和工具管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 加载可用技能列表
+ * 从API获取所有可用的AI技能
+ */
 async function loadSkills() {
   try {
     const res = await fetch(`${API}/api/skills`);
@@ -549,6 +775,10 @@ async function loadSkills() {
   }
 }
 
+/**
+ * 加载可用工具列表
+ * 从API获取所有可用的AI工具
+ */
 async function loadTools() {
   try {
     const res = await fetch(`${API}/api/tools`);
@@ -570,13 +800,21 @@ async function loadTools() {
   }
 }
 
-// ── intelligence / trends ──
 
+// ═══════════════════════════════════════════════════════════════
+// 热点资讯管理
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 加载热点资讯
+ * 从API获取热搜、GitHub趋势、科技新闻等数据
+ */
 async function loadTrends() {
   try {
     const res = await fetch(`${API}/api/trends`);
     const data = await res.json();
 
+    // 处理热搜数据
     if (data.hot_search && data.hot_search.length > 0 && data.hot_search[0].word !== "暂无数据") {
       const grouped = {};
       data.hot_search.forEach(item => {
@@ -607,6 +845,7 @@ async function loadTrends() {
       $hotsearchList.innerHTML = '<div class="list-loading">no data</div>';
     }
 
+    // 处理GitHub趋势数据
     if (data.github && data.github.length > 0 && data.github[0].name !== "暂无数据") {
       $githubList.innerHTML = data.github.map(item => `
         <div class="trend-item">
@@ -625,6 +864,7 @@ async function loadTrends() {
       $githubList.innerHTML = '<div class="list-loading">no data</div>';
     }
 
+    // 处理科技新闻数据
     if (data.tech_news && data.tech_news.length > 0 && data.tech_news[0].title !== "暂无数据") {
       $techList.innerHTML = data.tech_news.map(item => `
         <div class="trend-item">
@@ -647,8 +887,15 @@ async function loadTrends() {
   }
 }
 
-// ── tabs ──
 
+// ═══════════════════════════════════════════════════════════════
+// 标签页切换功能
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 初始化右侧热点资讯面板的标签页切换
+ * 支持：热搜 / GitHub / 科技新闻 三个标签
+ */
 document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(b => b.classList.remove('active'));
@@ -662,6 +909,10 @@ document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(btn => {
   });
 });
 
+/**
+ * 初始化左侧技能/工具面板的标签页切换
+ * 支持：技能 / 工具 两个标签
+ */
 document.querySelectorAll('.tools-tabs .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tools-tabs .tab-btn').forEach(b => b.classList.remove('active'));
@@ -675,8 +926,17 @@ document.querySelectorAll('.tools-tabs .tab-btn').forEach(btn => {
   });
 });
 
-// ── parse SSE ──
 
+// ═══════════════════════════════════════════════════════════════
+// SSE事件解析
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 解析Server-Sent Events (SSE) 事件行
+ * 从SSE格式的文本中提取JSON数据
+ * @param {string} line - SSE事件行
+ * @returns {Object|null} 解析后的数据对象
+ */
 function parseSSE(line) {
   if (line.startsWith('data: ')) {
     const data = line.slice(6);
@@ -690,8 +950,16 @@ function parseSSE(line) {
   return null;
 }
 
-// ── streaming chat ──
 
+// ═══════════════════════════════════════════════════════════════
+// 流式聊天功能
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 发送消息并处理响应
+ * 使用流式API接收AI响应，实时更新界面
+ * @param {string} text - 用户消息内容
+ */
 async function sendMessage(text) {
   setBusy(true);
   setLoading(true, '连接中...');
@@ -706,6 +974,7 @@ async function sendMessage(text) {
   try {
     appendProgressMessage('正在连接到服务器...', 'info');
     
+    // 发送POST请求到聊天API
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -719,10 +988,12 @@ async function sendMessage(text) {
     
     appendProgressMessage('连接成功，开始处理请求...', 'success');
 
+    // 获取响应流
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
+    // 持续读取流数据
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -731,81 +1002,92 @@ async function sendMessage(text) {
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
 
+      // 处理每一行SSE事件
       for (const line of lines) {
         if (!line.trim()) continue;
 
         const event = parseSSE(line);
         if (!event) continue;
 
-         switch (event.type) {
-           case 'thread_id':
-             updateThread(event.thread_id);
-             appendProgressMessage(`对话线程已创建: ${event.thread_id.slice(0, 8)}...`, 'info');
-             break;
+        // 根据事件类型处理不同的消息
+        switch (event.type) {
+          // 新线程创建事件
+          case 'thread_id':
+            updateThread(event.thread_id);
+            appendProgressMessage(`对话线程已创建: ${event.thread_id.slice(0, 8)}...`, 'info');
+            break;
 
-           case 'status':
-             setLoading(true, event.message);
-             appendProgressMessage(`状态: ${event.message}`, 'info');
-             break;
+          // 状态更新事件
+          case 'status':
+            setLoading(true, event.message);
+            appendProgressMessage(`状态: ${event.message}`, 'info');
+            break;
 
-           case 'todo_created':
-             // 直接使用事件中的 items 显示 TODO
-             console.log('todo_created event:', event);
-             if (event.items && event.items.length > 0) {
-               appendProgressMessage(`已创建任务列表，共 ${event.items.length} 个任务`, 'success');
-               // 后端发送的 items 已经是 {description, completed} 格式
-               updateTodoDisplay({
-                 tasks: event.items,
-                 completed_count: 0,
-                 total_count: event.items.length,
-               });
-             } else {
-               console.warn('todo_created event has no items:', event);
-               appendProgressMessage('任务列表创建失败，未获取到任务项', 'warning');
-             }
-             break;
+          // 待办事项创建事件
+          case 'todo_created':
+            console.log('todo_created event:', event);
+            if (event.items && event.items.length > 0) {
+              appendProgressMessage(`已创建任务列表，共 ${event.items.length} 个任务`, 'success');
+              updateTodoDisplay({
+                tasks: event.items,
+                completed_count: 0,
+                total_count: event.items.length,
+              });
+            } else {
+              console.warn('todo_created event has no items:', event);
+              appendProgressMessage('任务列表创建失败，未获取到任务项', 'warning');
+            }
+            break;
 
-           case 'tool_calls':
-             if (event.tools && event.tools.length > 0) {
-               const toolNames = event.tools.map(t => t.name || '未知工具').join(', ');
-               appendProgressMessage(`正在调用工具: ${toolNames}`, 'info');
-             }
-             appendToolCalls(event.tools);
-             break;
-             
-           case 'tool_call':
-             // 单个工具调用事件
-             handleToolCallEvent(event);
-             break;
+          // 工具调用列表事件
+          case 'tool_calls':
+            if (event.tools && event.tools.length > 0) {
+              const toolNames = event.tools.map(t => t.name || '未知工具').join(', ');
+              appendProgressMessage(`正在调用工具: ${toolNames}`, 'info');
+            }
+            appendToolCalls(event.tools);
+            break;
+            
+          // 单个工具调用事件
+          case 'tool_call':
+            handleToolCallEvent(event);
+            break;
 
-           case 'response':
-             appendProgressMessage('正在生成最终响应...', 'info');
-             appendAssistantMessage(renderMarkdown(event.content));
-             appendProgressMessage('响应生成完成', 'success');
-             break;
+          // AI最终响应事件
+          case 'response':
+            appendProgressMessage('正在生成最终响应...', 'info');
+            appendAssistantMessage(renderMarkdown(event.content));
+            appendProgressMessage('响应生成完成', 'success');
+            break;
 
-           case 'auto_continue':
-             appendProgressMessage('检测到任务未完成，自动继续执行...', 'info');
-             appendIterationBlock('AUTO CONTINUE', event.content);
-             break;
+          // 自动继续执行事件
+          case 'auto_continue':
+            appendProgressMessage('检测到任务未完成，自动继续执行...', 'info');
+            appendIterationBlock('AUTO CONTINUE', event.content);
+            break;
 
+          // 笔记/备注事件
           case 'note':
             appendIterationBlock('NOTE', event.content);
             break;
 
+          // 待办事项更新事件
           case 'todo':
             updateTodoDisplay(event.todo);
             break;
 
+          // 待办事项完成删除事件
           case 'todo_deleted':
             $todoContent.innerHTML = '<div class="todo-empty">task completed</div>';
             break;
 
-           case 'error':
-             appendProgressMessage(`错误: ${event.message}`, 'error');
-             appendError(event.message);
-             break;
+          // 错误事件
+          case 'error':
+            appendProgressMessage(`错误: ${event.message}`, 'error');
+            appendError(event.message);
+            break;
 
+          // 完成事件
           case 'done':
             setLoading(false);
             break;
@@ -822,12 +1104,16 @@ async function sendMessage(text) {
     }
   }
 
-   setBusy(false);
-   currentAbortController = null;
-   appendProgressMessage('本次对话处理完成', 'success');
-   scrollToBottom();
+  setBusy(false);
+  currentAbortController = null;
+  appendProgressMessage('本次对话处理完成', 'success');
+  scrollToBottom();
 }
 
+/**
+ * 创建新对话
+ * 清空当前消息，创建新的线程
+ */
 async function newChat() {
   try {
     const res = await fetch(`${API}/api/new`, { method: 'POST' });
@@ -848,8 +1134,12 @@ async function newChat() {
   }
 }
 
-// ── events ──
 
+// ═══════════════════════════════════════════════════════════════
+// 事件绑定
+// ═══════════════════════════════════════════════════════════════
+
+// 发送按钮点击事件
 $send.addEventListener('click', async () => {
   const text = $input.value.trim();
   if (!text) return;
@@ -858,12 +1148,15 @@ $send.addEventListener('click', async () => {
   $input.style.height = 'auto';
 
   if (busy) {
+    // 如果AI忙碌，将消息加入待发送队列
     addPendingMessage(text);
   } else {
+    // 否则立即发送
     await sendMessage(text);
   }
 });
 
+// 输入框键盘事件 - Enter发送，Shift+Enter换行
 $input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -871,26 +1164,36 @@ $input.addEventListener('keydown', (e) => {
   }
 });
 
+// 输入框内容变化事件 - 自动调整输入框高度
 $input.addEventListener('input', () => {
   $input.style.height = 'auto';
   $input.style.height = Math.min($input.scrollHeight, 100) + 'px';
 });
 
+// 新建对话按钮点击事件
 $btnNew.addEventListener('click', () => {
   clearPendingQueue();
   if (!busy) newChat();
 });
 
+// 清空待发送队列按钮
 $btnClearPending.addEventListener('click', clearPendingQueue);
+
+// 刷新按钮事件绑定
 $btnRefreshHistory.addEventListener('click', loadHistory);
 $btnRefreshTodo.addEventListener('click', loadTodo);
 $btnRefreshTrends.addEventListener('click', loadTrends);
 
-// ── init ──
-newChat();
-loadSkills();
-loadTools();
-loadTrends();
+
+// ═══════════════════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════════════════
+
+// 页面加载完成后初始化
+newChat();       // 创建新对话
+loadSkills();    // 加载技能列表
+loadTools();     // 加载工具列表
+loadTrends();    // 加载热点资讯
 
 // 监听窗口大小变化
 window.addEventListener('resize', () => {
@@ -905,18 +1208,25 @@ setInterval(() => {
   }
 }, 2000);
 
-// ── resizable sidebars ──
 
+// ═══════════════════════════════════════════════════════════════
+// 侧边栏拖拽调整大小功能
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 初始化侧边栏拖拽调整大小功能
+ * 允许用户通过拖拽调整左右侧边栏的宽度
+ */
 function initResizers() {
   const app = document.getElementById('app');
   
-  // 创建左侧拖动条 (intelligence)
+  // 创建左侧拖动条 (intelligence侧边栏)
   const resizerLeft = document.createElement('div');
   resizerLeft.className = 'resizer resizer-left';
   resizerLeft.id = 'resizer-left';
   app.appendChild(resizerLeft);
   
-  // 创建左侧第二个拖动条 (history)
+  // 创建左侧第二个拖动条 (history侧边栏)
   const resizerLeft2 = document.createElement('div');
   resizerLeft2.className = 'resizer resizer-left-2';
   resizerLeft2.id = 'resizer-left-2';
@@ -928,15 +1238,21 @@ function initResizers() {
   resizerRight.id = 'resizer-right';
   app.appendChild(resizerRight);
   
+  // 拖拽状态变量
   let currentResizer = null;
   let startX = 0;
   let startSidebarWidth = 0;
   
-  // 拖动开始
+  /**
+   * 开始拖拽
+   * @param {MouseEvent} e - 鼠标事件对象
+   * @param {HTMLElement} resizer - 拖拽条元素
+   */
   function initDrag(e, resizer) {
     currentResizer = resizer;
     startX = e.pageX;
     
+    // 根据不同的拖拽条获取初始宽度
     if (resizer.id === 'resizer-left') {
       startSidebarWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--intelligence-width')) || 280;
     } else if (resizer.id === 'resizer-left-2') {
@@ -950,7 +1266,10 @@ function initResizers() {
     document.body.style.userSelect = 'none';
   }
   
-  // 拖动中
+  /**
+   * 拖拽过程中更新宽度
+   * @param {MouseEvent} e - 鼠标事件对象
+   */
   function doDrag(e) {
     if (!currentResizer) return;
     
@@ -978,7 +1297,9 @@ function initResizers() {
     updateResizerPositions();
   }
   
-  // 拖动结束
+  /**
+   * 结束拖拽
+   */
   function endDrag() {
     if (currentResizer) {
       currentResizer.classList.remove('active');
@@ -988,7 +1309,10 @@ function initResizers() {
     document.body.style.userSelect = '';
   }
   
-  // 更新拖动条位置
+  /**
+   * 更新拖动条位置
+   * 根据侧边栏宽度计算拖动条的left/right值
+   */
   function updateResizerPositions() {
     const intelligenceWidth = getComputedStyle(document.documentElement).getPropertyValue('--intelligence-width').trim();
     const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
@@ -999,7 +1323,7 @@ function initResizers() {
     resizerRight.style.right = rightSidebarWidth + 'px';
   }
   
-  // 绑定事件
+  // 绑定拖拽事件监听器
   resizerLeft.addEventListener('mousedown', (e) => initDrag(e, resizerLeft));
   resizerLeft2.addEventListener('mousedown', (e) => initDrag(e, resizerLeft2));
   resizerRight.addEventListener('mousedown', (e) => initDrag(e, resizerRight));
@@ -1007,11 +1331,9 @@ function initResizers() {
   document.addEventListener('mousemove', doDrag);
   document.addEventListener('mouseup', endDrag);
   
-  // 初始化位置
+  // 初始化拖动条位置
   updateResizerPositions();
   
   // 窗口大小变化时更新位置
   window.addEventListener('resize', updateResizerPositions);
 }
-
-
