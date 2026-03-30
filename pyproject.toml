@@ -13,4 +13,6 @@ dependencies = [
     "ipykernel>=7.2.0",
     "fastapi>=0.135.2",
     "uvicorn>=0.42.0",
+    "duckduckgo-search>=8.1.1",
+    "ddgs>=9.12.0",
 ]

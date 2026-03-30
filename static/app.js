@@ -26,6 +26,10 @@ const $pendingList = document.getElementById('pending-list');
 const $btnClearPending = document.getElementById('btn-clear-pending');
 const $btnRefreshHistory = document.getElementById('btn-refresh-history');
 const $btnRefreshTodo = document.getElementById('btn-refresh-todo');
+const $btnRefreshTrends = document.getElementById('btn-refresh-trends');
+const $hotsearchList = document.getElementById('hotsearch-list');
+const $githubList = document.getElementById('github-list');
+const $techList = document.getElementById('tech-list');
 
 // ── marked config ──
 marked.setOptions({
@@ -365,14 +369,24 @@ async function loadHistory() {
 
     $historyList.innerHTML = data.history.map(item => `
       <div class="history-item ${item.thread_id === threadId ? 'active' : ''}" data-thread="${item.thread_id}">
-        <span class="history-item-delete" onclick="event.stopPropagation(); deleteHistory('${item.thread_id}')">DEL</span>
+        <span class="history-item-delete" data-delete="${item.thread_id}">DEL</span>
         <div class="history-item-thread">${item.thread_id.slice(0, 12)}...</div>
         <div class="history-item-preview">${escapeHtml(item.last_message || 'empty')}</div>
       </div>
     `).join('');
 
     $historyList.querySelectorAll('.history-item').forEach(el => {
-      el.addEventListener('click', () => loadChatHistory(el.dataset.thread));
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('history-item-delete')) return;
+        loadChatHistory(el.dataset.thread);
+      });
+    });
+
+    $historyList.querySelectorAll('.history-item-delete').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteHistory(el.dataset.delete);
+      });
     });
   } catch (e) {
     console.error('Failed to load history:', e);
@@ -556,14 +570,108 @@ async function loadTools() {
   }
 }
 
+// ── intelligence / trends ──
+
+async function loadTrends() {
+  try {
+    const res = await fetch(`${API}/api/trends`);
+    const data = await res.json();
+
+    if (data.hot_search && data.hot_search.length > 0 && data.hot_search[0].word !== "暂无数据") {
+      const grouped = {};
+      data.hot_search.forEach(item => {
+        const source = item.source || 'other';
+        if (!grouped[source]) grouped[source] = [];
+        grouped[source].push(item);
+      });
+      
+      let html = '';
+      for (const [source, items] of Object.entries(grouped)) {
+        html += `<div class="trend-group"><div class="trend-group-header">${escapeHtml(source)}</div>`;
+        html += items.map((item, i) => {
+          const linkUrl = item.url || '#';
+          return `
+          <div class="trend-item">
+            <div class="trend-item-meta">
+              <span class="trend-item-rank">${i + 1}</span>
+            </div>
+            <div class="trend-item-title">
+              <a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener">${escapeHtml(item.word || item.raw_word)}</a>
+            </div>
+          </div>`;
+        }).join('');
+        html += '</div>';
+      }
+      $hotsearchList.innerHTML = html;
+    } else {
+      $hotsearchList.innerHTML = '<div class="list-loading">no data</div>';
+    }
+
+    if (data.github && data.github.length > 0 && data.github[0].name !== "暂无数据") {
+      $githubList.innerHTML = data.github.map(item => `
+        <div class="trend-item">
+          <div class="trend-item-github">
+            <div class="trend-item-github-name">
+              <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener">${escapeHtml(item.name)}</a>
+            </div>
+            ${item.description ? `<div class="trend-item-github-desc">${escapeHtml(item.description)}</div>` : ''}
+            <div class="trend-item-github-stats">
+              <span class="trend-item-github-lang">${escapeHtml(item.language || '')}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      $githubList.innerHTML = '<div class="list-loading">no data</div>';
+    }
+
+    if (data.tech_news && data.tech_news.length > 0 && data.tech_news[0].title !== "暂无数据") {
+      $techList.innerHTML = data.tech_news.map(item => `
+        <div class="trend-item">
+          <div class="trend-item-meta">
+            <span class="trend-source-tag">${escapeHtml(item.source || '')}</span>
+          </div>
+          <div class="trend-item-title">
+            <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener">${escapeHtml(item.title)}</a>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      $techList.innerHTML = '<div class="list-loading">no data</div>';
+    }
+
+  } catch (e) {
+    $hotsearchList.innerHTML = '<div class="list-error">加载失败</div>';
+    $githubList.innerHTML = '<div class="list-error">加载失败</div>';
+    $techList.innerHTML = '<div class="list-error">加载失败</div>';
+  }
+}
+
 // ── tabs ──
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.intelligence-content .tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    const tabId = btn.dataset.tab;
+    const panel = document.getElementById(`tab-${tabId}`);
+    if (panel) {
+      panel.classList.add('active');
+    }
+  });
+});
+
+document.querySelectorAll('.tools-tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tools-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tools-content .tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = btn.dataset.tab;
+    const panel = document.getElementById(`tab-${tabId}`);
+    if (panel) {
+      panel.classList.add('active');
+    }
   });
 });
 
@@ -776,48 +884,43 @@ $btnNew.addEventListener('click', () => {
 $btnClearPending.addEventListener('click', clearPendingQueue);
 $btnRefreshHistory.addEventListener('click', loadHistory);
 $btnRefreshTodo.addEventListener('click', loadTodo);
+$btnRefreshTrends.addEventListener('click', loadTrends);
 
 // ── init ──
 newChat();
 loadSkills();
 loadTools();
+loadTrends();
 
-// 确保输入框始终可见且可输入
-$input.style.display = 'block';
-$input.style.visibility = 'visible';
-$input.style.opacity = '1';
-
-// 监听窗口大小变化，确保输入框始终可见
+// 监听窗口大小变化
 window.addEventListener('resize', () => {
-  $input.style.display = 'block';
-  $input.style.visibility = 'visible';
+  // 可以在这里添加resize处理逻辑
 });
 
-// 点击消息区域时，让输入框获得焦点
-$messages.addEventListener('click', () => {
-  $input.focus();
-});
-
-// 定期检查输入框状态
+// 定期检查输入框状态（只检查不修改布局）
 setInterval(() => {
-  if ($input.style.display !== 'block') {
-    $input.style.display = 'block';
+  // 只确保输入框可聚焦，不修改其他样式
+  if (!$input.hasAttribute('tabindex')) {
+    $input.setAttribute('tabindex', '0');
   }
-  if ($input.style.visibility !== 'visible') {
-    $input.style.visibility = 'visible';
-  }
-}, 1000);
+}, 2000);
 
 // ── resizable sidebars ──
 
 function initResizers() {
   const app = document.getElementById('app');
   
-  // 创建左侧拖动条
+  // 创建左侧拖动条 (intelligence)
   const resizerLeft = document.createElement('div');
   resizerLeft.className = 'resizer resizer-left';
   resizerLeft.id = 'resizer-left';
   app.appendChild(resizerLeft);
+  
+  // 创建左侧第二个拖动条 (history)
+  const resizerLeft2 = document.createElement('div');
+  resizerLeft2.className = 'resizer resizer-left-2';
+  resizerLeft2.id = 'resizer-left-2';
+  app.appendChild(resizerLeft2);
   
   // 创建右侧拖动条
   const resizerRight = document.createElement('div');
@@ -834,8 +937,13 @@ function initResizers() {
     currentResizer = resizer;
     startX = e.pageX;
     
-    const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
-    startSidebarWidth = parseInt(sidebarWidth) || 220;
+    if (resizer.id === 'resizer-left') {
+      startSidebarWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--intelligence-width')) || 280;
+    } else if (resizer.id === 'resizer-left-2') {
+      startSidebarWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width')) || 220;
+    } else {
+      startSidebarWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--right-sidebar-width')) || 220;
+    }
     
     resizer.classList.add('active');
     document.body.style.cursor = 'col-resize';
@@ -850,14 +958,19 @@ function initResizers() {
     let newWidth;
     
     if (currentResizer.id === 'resizer-left') {
-      // 左侧侧边栏
+      // intelligence 侧边栏
       newWidth = startSidebarWidth + diffX;
-      newWidth = Math.max(150, Math.min(400, newWidth)); // 限制范围
+      newWidth = Math.max(200, Math.min(400, newWidth));
+      document.documentElement.style.setProperty('--intelligence-width', newWidth + 'px');
+    } else if (currentResizer.id === 'resizer-left-2') {
+      // history 侧边栏
+      newWidth = startSidebarWidth + diffX;
+      newWidth = Math.max(150, Math.min(350, newWidth));
       document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
     } else if (currentResizer.id === 'resizer-right') {
       // 右侧侧边栏
       newWidth = startSidebarWidth - diffX;
-      newWidth = Math.max(180, Math.min(450, newWidth)); // 限制范围
+      newWidth = Math.max(180, Math.min(350, newWidth));
       document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');
     }
     
@@ -877,15 +990,18 @@ function initResizers() {
   
   // 更新拖动条位置
   function updateResizerPositions() {
+    const intelligenceWidth = getComputedStyle(document.documentElement).getPropertyValue('--intelligence-width').trim();
     const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
     const rightSidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--right-sidebar-width').trim();
     
-    resizerLeft.style.left = sidebarWidth + 'px';
+    resizerLeft.style.left = intelligenceWidth + 'px';
+    resizerLeft2.style.left = (parseInt(intelligenceWidth) + parseInt(sidebarWidth)) + 'px';
     resizerRight.style.right = rightSidebarWidth + 'px';
   }
   
   // 绑定事件
   resizerLeft.addEventListener('mousedown', (e) => initDrag(e, resizerLeft));
+  resizerLeft2.addEventListener('mousedown', (e) => initDrag(e, resizerLeft2));
   resizerRight.addEventListener('mousedown', (e) => initDrag(e, resizerRight));
   
   document.addEventListener('mousemove', doDrag);
@@ -898,5 +1014,4 @@ function initResizers() {
   window.addEventListener('resize', updateResizerPositions);
 }
 
-// 初始化拖动功能
-initResizers();
+

@@ -1,7 +1,31 @@
 import subprocess
 from pathlib import Path
+import urllib.request
+import urllib.error
+import xml.etree.ElementTree as ET
 
 from langchain_core.tools import tool
+from langchain_community.tools import DuckDuckGoSearchRun
+
+
+search = DuckDuckGoSearchRun()
+
+
+@tool
+def web_search(query: str) -> str:
+    """使用 DuckDuckGo 搜索网络，获取实时信息。
+
+    Args:
+        query: 搜索关键词或问题
+
+    Returns:
+        搜索结果列表，包含标题、链接和摘要。
+    """
+    try:
+        result = search.run(query)
+        return result
+    except Exception as e:
+        return f"[Error] 搜索失败: {e}"
 
 
 @tool
@@ -62,7 +86,7 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
     try:
         content = filepath.read_text(encoding=encoding)
         # 显示文件信息
-        lines = content.count('\n') + 1
+        lines = content.count("\n") + 1
         chars = len(content)
         header = f"=== 文件: {filepath} ({lines} 行, {chars} 字符) ===\n\n"
         return header + content
@@ -75,7 +99,9 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
 
 
 @tool
-def read_binary_file(filename: str, bytes_per_line: int = 16, max_bytes: int = 1024) -> str:
+def read_binary_file(
+    filename: str, bytes_per_line: int = 16, max_bytes: int = 1024
+) -> str:
     """读取二进制文件并以十六进制格式显示。
 
     Args:
@@ -109,7 +135,7 @@ def read_binary_file(filename: str, bytes_per_line: int = 16, max_bytes: int = 1
         # 十六进制转储
         lines = []
         for offset in range(0, len(data), bytes_per_line):
-            chunk = data[offset:offset + bytes_per_line]
+            chunk = data[offset : offset + bytes_per_line]
 
             # 偏移地址
             offset_hex = f"{offset:08x}"
@@ -120,7 +146,9 @@ def read_binary_file(filename: str, bytes_per_line: int = 16, max_bytes: int = 1
             # ASCII 表示
             ascii_chars = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
 
-            lines.append(f"{offset_hex}  {hex_bytes:<{bytes_per_line * 3 - 1}}  |{ascii_chars}|")
+            lines.append(
+                f"{offset_hex}  {hex_bytes:<{bytes_per_line * 3 - 1}}  |{ascii_chars}|"
+            )
 
         return header + "\n".join(lines)
     except FileNotFoundError:
@@ -129,4 +157,137 @@ def read_binary_file(filename: str, bytes_per_line: int = 16, max_bytes: int = 1
         return f"[Error] 读取文件失败: {e}"
 
 
-tools = [run_powershell, write_file, read_text_file, read_binary_file]
+@tool
+def fetch_rss_feed(url: str, max_items: int = 10) -> str:
+    """获取并解析 RSS/Atom 订阅源，返回最新文章列表。
+
+    Args:
+        url: RSS 或 Atom 订阅源的 URL 地址
+        max_items: 最多返回的文章数量，默认 10
+
+    Returns:
+        订阅源的最新文章列表，每条包含标题、链接、发布时间和摘要。
+        如果获取失败，返回错误信息。
+    """
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as response:
+            content = response.read().decode("utf-8")
+
+        root = ET.fromstring(content)
+
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+
+        channel_title = ""
+        items = []
+
+        if root.tag == "rss":
+            channel = root.find("channel")
+            if channel is not None:
+                title_elem = channel.find("title")
+                if title_elem is not None:
+                    channel_title = title_elem.text or ""
+
+                for item in channel.findall("item")[:max_items]:
+                    item_data = {}
+                    title_elem = item.find("title")
+                    if title_elem is not None:
+                        item_data["title"] = title_elem.text or ""
+
+                    link_elem = item.find("link")
+                    if link_elem is not None:
+                        item_data["link"] = link_elem.text or ""
+                    else:
+                        item_data["link"] = ""
+
+                    desc_elem = item.find("description")
+                    if desc_elem is not None:
+                        item_data["description"] = desc_elem.text or ""
+
+                    pub_elem = item.find("pubDate")
+                    if pub_elem is not None:
+                        item_data["pubDate"] = pub_elem.text or ""
+
+                    if item_data.get("title"):
+                        items.append(item_data)
+
+        elif root.tag == "{http://www.w3.org/2005/Atom}feed" or root.tag == "feed":
+            feed_ns = root
+            title_elem = feed_ns.find("title")
+            if title_elem is not None:
+                channel_title = title_elem.text or ""
+
+            entries = feed_ns.findall("entry")[:max_items]
+            for entry in entries:
+                item_data = {}
+
+                title_elem = entry.find("title")
+                if title_elem is not None:
+                    item_data["title"] = title_elem.text or ""
+
+                link_elem = entry.find("link")
+                if link_elem is not None:
+                    href = link_elem.get("href")
+                    if href:
+                        item_data["link"] = href
+                    else:
+                        item_data["link"] = ""
+                else:
+                    item_data["link"] = ""
+
+                summary_elem = entry.find("summary")
+                if summary_elem is not None:
+                    item_data["description"] = summary_elem.text or ""
+                else:
+                    content_elem = entry.find("content")
+                    if content_elem is not None:
+                        item_data["description"] = content_elem.text or ""
+
+                updated_elem = entry.find("updated")
+                if updated_elem is not None:
+                    item_data["pubDate"] = updated_elem.text or ""
+
+                if item_data.get("title"):
+                    items.append(item_data)
+
+        if not channel_title:
+            channel_title = url
+
+        if not items:
+            return f"[Error] 未能解析 RSS 源: {url}"
+
+        result = f"=== {channel_title} (共 {len(items)} 条) ===\n\n"
+        for i, item in enumerate(items, 1):
+            result += f"{i}. {item.get('title', '无标题')}\n"
+            if item.get("link"):
+                result += f"   链接: {item['link']}\n"
+            if item.get("pubDate"):
+                result += f"   时间: {item['pubDate']}\n"
+            if item.get("description"):
+                desc = item["description"][:200].replace("\n", " ").strip()
+                if len(item.get("description", "")) > 200:
+                    desc += "..."
+                result += f"   摘要: {desc}\n"
+            result += "\n"
+
+        return result
+
+    except urllib.error.URLError as e:
+        return f"[Error] 无法访问 RSS 源: {e}"
+    except ET.ParseError as e:
+        return f"[Error] RSS 解析失败: {e}"
+    except Exception as e:
+        return f"[Error] 获取 RSS 失败: {e}"
+
+
+tools = [
+    run_powershell,
+    write_file,
+    read_text_file,
+    read_binary_file,
+    fetch_rss_feed,
+    web_search,
+]

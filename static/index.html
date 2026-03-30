@@ -12,14 +12,49 @@
 </head>
 <body>
 <div id="app">
-  <!-- Left Sidebar: History -->
+  <!-- Left Sidebar: History + TODO + Capabilities -->
   <aside class="sidebar-left">
+    <!-- History -->
     <div class="sidebar-header">
       <span class="sidebar-title">HISTORY</span>
       <button class="btn-icon" id="btn-refresh-history">REFRESH</button>
     </div>
     <div class="history-list" id="history-list">
       <div class="history-empty">no history</div>
+    </div>
+
+    <!-- TODO -->
+    <div class="todo-panel">
+      <div class="panel-header">
+        <span class="panel-title">TODO</span>
+        <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
+      </div>
+      <div class="todo-content" id="todo-content">
+        <div class="todo-empty">no active task</div>
+      </div>
+    </div>
+
+    <!-- Capabilities -->
+    <div class="tools-panel">
+      <div class="panel-header">
+        <span class="panel-title">CAPABILITIES</span>
+      </div>
+      <div class="tools-tabs">
+        <button class="tab-btn active" data-tab="skills">SKILLS</button>
+        <button class="tab-btn" data-tab="tools">TOOLS</button>
+      </div>
+      <div class="tools-content" id="tools-content">
+        <div class="tab-panel active" id="tab-skills">
+          <div class="skills-list" id="skills-list">
+            <div class="list-loading">loading...</div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-tools">
+          <div class="tools-list" id="tools-list">
+            <div class="list-loading">loading...</div>
+          </div>
+        </div>
+      </div>
     </div>
   </aside>
 
@@ -62,36 +97,32 @@
     </div>
   </main>
 
-  <!-- Right Sidebar: TODO + Skills/Tools -->
+  <!-- Right Sidebar: Intelligence -->
   <aside class="sidebar-right">
-    <!-- Top: TODO -->
-    <div class="todo-panel">
+    <!-- Intelligence Panel -->
+    <div class="intelligence-panel">
       <div class="panel-header">
-        <span class="panel-title">TODO</span>
-        <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
+        <span class="panel-title">INTELLIGENCE</span>
+        <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
       </div>
-      <div class="todo-content" id="todo-content">
-        <div class="todo-empty">no active task</div>
+      <div class="intelligence-tabs">
+        <button class="tab-btn active" data-tab="hotsearch">HOT</button>
+        <button class="tab-btn" data-tab="github">GITHUB</button>
+        <button class="tab-btn" data-tab="tech">TECH</button>
       </div>
-    </div>
-
-    <!-- Bottom: Skills/Tools -->
-    <div class="tools-panel">
-      <div class="panel-header">
-        <span class="panel-title">CAPABILITIES</span>
-      </div>
-      <div class="tools-tabs">
-        <button class="tab-btn active" data-tab="skills">SKILLS</button>
-        <button class="tab-btn" data-tab="tools">TOOLS</button>
-      </div>
-      <div class="tools-content" id="tools-content">
-        <div class="tab-panel active" id="tab-skills">
-          <div class="skills-list" id="skills-list">
+      <div class="intelligence-content" id="intelligence-content">
+        <div class="tab-panel active" id="tab-hotsearch">
+          <div class="trends-list" id="hotsearch-list">
             <div class="list-loading">loading...</div>
           </div>
         </div>
-        <div class="tab-panel" id="tab-tools">
-          <div class="tools-list" id="tools-list">
+        <div class="tab-panel" id="tab-github">
+          <div class="trends-list" id="github-list">
+            <div class="list-loading">loading...</div>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-tech">
+          <div class="trends-list" id="tech-list">
             <div class="list-loading">loading...</div>
           </div>
         </div>

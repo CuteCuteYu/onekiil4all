@@ -6,6 +6,7 @@
 from model_set import model_set
 from agent_set import agent_set
 from execution_display import print_execution_steps, print_execution_stats
+from typing import List, Dict, Any
 
 model = model_set.model
 
@@ -23,6 +24,7 @@ class ChatHandler:
 
     def __init__(self):
         self.thread_id = None
+        self.message_history: Dict[str, List[Any]] = {}
 
     @property
     def current_thread_id(self):
@@ -38,14 +40,19 @@ class ChatHandler:
         import uuid
 
         self.thread_id = str(uuid.uuid4())
+        if self.current_thread_id in self.message_history:
+            del self.message_history[self.current_thread_id]
 
-    def chat(self, content: str, verbose: bool = True) -> tuple[str, dict]:
+    def chat(
+        self, content: str, verbose: bool = True, history: List[Any] = None
+    ) -> tuple[str, dict]:
         """
         执行聊天并返回响应和详细信息
 
         Args:
             content: 用户输入内容
             verbose: 是否显示详细信息
+            history: 可选的历史消息列表
 
         Returns:
             (响应内容, 详情字典)
@@ -53,17 +60,25 @@ class ChatHandler:
         if verbose:
             print(f"\n[执行] 正在处理请求...")
 
-        result = agent.invoke(
+        thread_id = self.current_thread_id
+
+        if thread_id not in self.message_history:
+            self.message_history[thread_id] = []
+
+        messages = self.message_history[thread_id].copy()
+        messages.append(
             {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": content,
-                    }
-                ]
-            },
-            config={"configurable": {"thread_id": self.current_thread_id}},
+                "role": "user",
+                "content": content,
+            }
         )
+
+        result = agent.invoke(
+            {"messages": messages},
+            config={"configurable": {"thread_id": thread_id}},
+        )
+
+        self.message_history[thread_id] = list(result["messages"])
 
         # 收集详细信息
         details = {

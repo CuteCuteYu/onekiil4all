@@ -113,9 +113,9 @@ def stream_chat_response(message: str, thread_id: str | None):
         session = get_or_create_session(thread_id)
         tid = session["thread_id"]
 
-        # 如果请求指定了不同的 thread_id，切换会话
-        if thread_id and chat_handler.thread_id != tid:
-            chat_handler.thread_id = tid
+        # 切换到指定的会话
+        chat_handler.thread_id = tid
+        chat_handler.message_history.clear()
 
         # 保存用户消息
         save_chat_message(tid, "user", message)
@@ -372,8 +372,16 @@ async def api_get_chat_history(thread_id: str):
         raise HTTPException(status_code=500, detail=f"读取失败: {e}")
 
 
+@app.get("/api/trends")
+async def api_get_trends():
+    """获取热门搜索和情报信息"""
+    from web.trends import get_trends
+
+    return get_trends()
+
+
 @app.delete("/api/history/{thread_id}")
-async def api_delete_chat_history(thread_id: str):
+async def api_delete_history(thread_id: str):
     """删除指定会话"""
     from pathlib import Path
     import shutil

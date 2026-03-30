@@ -1,0 +1,72 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: HISTORY
+      - button "REFRESH" [ref=e6] [cursor=pointer]
+    - generic [ref=e8]: no history
+  - main [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]: onekiil4all
+      - generic [ref=e12]:
+        - generic [ref=e13]: "43030731"
+        - button "NEW" [ref=e14] [cursor=pointer]
+    - generic [ref=e16]:
+      - generic [ref=e17]: onekiil4all
+      - generic [ref=e18]: send a message to begin
+    - generic [ref=e20]:
+      - textbox "type a message..." [ref=e21]
+      - button "SEND" [ref=e22] [cursor=pointer]
+  - complementary [ref=e23]:
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: INTELLIGENCE
+        - button "REFRESH" [ref=e27] [cursor=pointer]
+      - generic [ref=e28]:
+        - button "HOT" [ref=e29] [cursor=pointer]
+        - button "GITHUB" [ref=e30] [cursor=pointer]
+        - button "TECH" [ref=e31] [cursor=pointer]
+      - generic [ref=e35]: loading...
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]: TODO
+        - button "REFRESH" [ref=e39] [cursor=pointer]
+      - generic [ref=e41]: no active task
+    - generic [ref=e42]:
+      - generic [ref=e44]: CAPABILITIES
+      - generic [ref=e45]:
+        - button "SKILLS" [ref=e46] [cursor=pointer]
+        - button "TOOLS" [ref=e47] [cursor=pointer]
+      - generic [ref=e50]:
+        - generic [ref=e51]:
+          - generic [ref=e52]: cpp-mingw
+          - generic [ref=e53]: "---"
+        - generic [ref=e54]:
+          - generic [ref=e55]: defuddle
+          - generic [ref=e56]: "---"
+        - generic [ref=e57]:
+          - generic [ref=e58]: git-auto-commit
+          - generic [ref=e59]: "---"
+        - generic [ref=e60]:
+          - generic [ref=e61]: go
+          - generic [ref=e62]: "---"
+        - generic [ref=e63]:
+          - generic [ref=e64]: msf-cli
+          - generic [ref=e65]: "---"
+        - generic [ref=e66]:
+          - generic [ref=e67]: playwright-cli
+          - generic [ref=e68]: "---"
+        - generic [ref=e69]:
+          - generic [ref=e70]: powershell
+          - generic [ref=e71]: "---"
+        - generic [ref=e72]:
+          - generic [ref=e73]: python-uv
+          - generic [ref=e74]: "---"
+        - generic [ref=e75]:
+          - generic [ref=e76]: ruby-dev
+          - generic [ref=e77]: "---"
+        - generic [ref=e78]:
+          - generic [ref=e79]: rust-dev
+          - generic [ref=e80]: "---"
+        - generic [ref=e81]:
+          - generic [ref=e82]: searxng
+          - generic [ref=e83]: "---"
