@@ -49,6 +49,33 @@ function setLoading(on, text) {
   if (text) $loadingText.textContent = text;
 }
 
+function appendProgressMessage(text, type = 'info') {
+  removeEmptyState();
+  const el = document.createElement('div');
+  el.className = 'msg';
+  
+  let role = 'INFO';
+  let style = 'color: var(--fg-dim); font-style: italic;';
+  
+  if (type === 'success') {
+    role = 'SUCCESS';
+    style = 'color: var(--success);';
+  } else if (type === 'warning') {
+    role = 'WARNING';
+    style = 'color: var(--warning);';
+  } else if (type === 'error') {
+    role = 'ERROR';
+    style = 'color: var(--error);';
+  }
+  
+  el.innerHTML = `
+    <div class="msg-role">${role}</div>
+    <div class="msg-body" style="${style}">${escapeHtml(text)}</div>
+  `;
+  $messages.appendChild(el);
+  scrollToBottom();
+}
+
 function setBusy(on) {
   busy = on;
   $send.disabled = on;
@@ -103,14 +130,158 @@ function appendAssistantMessage(html) {
 
 function appendToolCalls(toolCalls) {
   if (!toolCalls || !toolCalls.length) return;
-  const el = document.createElement('div');
-  el.className = 'msg';
-  el.innerHTML = `
+  
+  // 创建工具调用容器
+  const container = document.createElement('div');
+  container.className = 'tool-calls-container';
+  
+  // 添加标题
+  const titleEl = document.createElement('div');
+  titleEl.className = 'msg';
+  titleEl.innerHTML = `
     <div class="msg-role">TOOLS</div>
-    ${toolCalls.map(tc => `<div class="tool-call">${escapeHtml(tc.name)}</div>`).join('')}
+    <div class="tool-call-header">正在调用以下工具 (${toolCalls.length}个):</div>
+  `;
+  container.appendChild(titleEl);
+  $messages.appendChild(container);
+  scrollToBottom();
+  
+  // 逐个添加工具调用（带延迟动画效果）
+  toolCalls.forEach((tool, index) => {
+    setTimeout(() => {
+      const toolEl = document.createElement('div');
+      toolEl.className = 'msg tool-call-item';
+      
+      // 为不同的工具类型添加不同的描述
+      let description = '';
+      let status = '调用中...';
+      
+      if (tool.name.includes('search') || tool.name.includes('Search')) {
+        description = '正在搜索信息...';
+      } else if (tool.name.includes('read') || tool.name.includes('Read')) {
+        description = '正在读取文件...';
+      } else if (tool.name.includes('write') || tool.name.includes('Write')) {
+        description = '正在写入文件...';
+      } else if (tool.name.includes('bash') || tool.name.includes('Bash')) {
+        description = '正在执行命令...';
+      } else if (tool.name.includes('edit') || tool.name.includes('Edit')) {
+        description = '正在编辑文件...';
+      } else {
+        description = '正在执行操作...';
+      }
+      
+      toolEl.innerHTML = `
+        <div class="msg-role">TOOL ${index + 1}</div>
+        <div class="tool-call-content">
+          <div class="tool-call-name">${escapeHtml(tool.name)}</div>
+          <div class="tool-call-desc">${escapeHtml(description)}</div>
+          <div class="tool-call-status">${escapeHtml(status)}</div>
+        </div>
+      `;
+      
+      container.appendChild(toolEl);
+      scrollToBottom();
+      
+      // 模拟工具执行完成（实际应由后端发送完成事件）
+      setTimeout(() => {
+        const statusEl = toolEl.querySelector('.tool-call-status');
+        if (statusEl) {
+          statusEl.textContent = '✓ 完成';
+          statusEl.style.color = 'var(--success)';
+        }
+      }, 800 + index * 400);
+      
+    }, index * 500); // 每个工具延迟500ms显示
+  });
+}
+
+function appendSingleToolCall(toolName, description = '', status = '', index = 0, total = 1) {
+  removeEmptyState();
+  const el = document.createElement('div');
+  el.className = 'msg tool-call-item';
+  el.innerHTML = `
+    <div class="msg-role">TOOL ${index + 1}/${total}</div>
+    <div class="tool-call-content">
+      <div class="tool-call-name">${escapeHtml(toolName)}</div>
+      ${description ? `<div class="tool-call-desc">${escapeHtml(description)}</div>` : ''}
+      ${status ? `<div class="tool-call-status">${escapeHtml(status)}</div>` : ''}
+    </div>
   `;
   $messages.appendChild(el);
   scrollToBottom();
+  return el;
+}
+
+function handleToolCallEvent(event) {
+  const toolName = event.name || '未知工具';
+  const status = event.status || '';
+  const index = event.index || 0;
+  const total = event.total || 1;
+  
+  // 根据工具名称生成描述
+  let description = '';
+  if (toolName.includes('search') || toolName.includes('Search')) {
+    description = '搜索网络信息';
+  } else if (toolName.includes('read') || toolName.includes('Read')) {
+    description = '读取文件内容';
+  } else if (toolName.includes('write') || toolName.includes('Write')) {
+    description = '写入文件';
+  } else if (toolName.includes('bash') || toolName.includes('Bash')) {
+    description = '执行系统命令';
+  } else if (toolName.includes('edit') || toolName.includes('Edit')) {
+    description = '编辑文件';
+  } else if (toolName.includes('glob') || toolName.includes('Glob')) {
+    description = '查找文件';
+  } else if (toolName.includes('grep') || toolName.includes('Grep')) {
+    description = '搜索文件内容';
+  } else {
+    description = '执行操作';
+  }
+  
+  // 查找是否已有该工具的元素
+  const existingTool = document.querySelector(`[data-tool-name="${toolName}"][data-tool-index="${index}"]`);
+  
+  if (existingTool) {
+    // 更新现有工具状态
+    const statusEl = existingTool.querySelector('.tool-call-status');
+    if (statusEl) {
+      statusEl.textContent = status;
+      
+      // 根据状态设置颜色
+      if (status.includes('✓') || status.includes('完成')) {
+        statusEl.style.color = 'var(--success)';
+      } else if (status.includes('执行中') || status.includes('...')) {
+        statusEl.style.color = 'var(--warning)';
+      } else if (status.includes('失败') || status.includes('错误')) {
+        statusEl.style.color = 'var(--error)';
+      }
+    }
+  } else {
+    // 创建新的工具调用显示
+    const el = appendSingleToolCall(toolName, description, status, index, total);
+    el.setAttribute('data-tool-name', toolName);
+    el.setAttribute('data-tool-index', index);
+    
+    // 根据状态设置初始颜色
+    const statusEl = el.querySelector('.tool-call-status');
+    if (statusEl) {
+      if (status.includes('✓') || status.includes('完成')) {
+        statusEl.style.color = 'var(--success)';
+      } else if (status.includes('执行中') || status.includes('...')) {
+        statusEl.style.color = 'var(--warning)';
+      }
+    }
+  }
+  
+  // 如果是第一个工具，显示进度消息
+  if (index === 0 && status.includes('开始调用')) {
+    appendProgressMessage(`开始执行 ${total} 个工具调用`, 'info');
+  }
+  
+  // 如果是最后一个工具完成，显示完成消息
+  if (index === total - 1 && (status.includes('✓') || status.includes('完成'))) {
+    appendProgressMessage(`所有工具调用完成`, 'success');
+  }
 }
 
 function appendIterationBlock(label, content) {
@@ -425,6 +596,8 @@ async function sendMessage(text) {
   currentAbortController = new AbortController();
 
   try {
+    appendProgressMessage('正在连接到服务器...', 'info');
+    
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -435,6 +608,8 @@ async function sendMessage(text) {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
+    
+    appendProgressMessage('连接成功，开始处理请求...', 'success');
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -454,41 +629,57 @@ async function sendMessage(text) {
         const event = parseSSE(line);
         if (!event) continue;
 
-        switch (event.type) {
-          case 'thread_id':
-            updateThread(event.thread_id);
-            break;
+         switch (event.type) {
+           case 'thread_id':
+             updateThread(event.thread_id);
+             appendProgressMessage(`对话线程已创建: ${event.thread_id.slice(0, 8)}...`, 'info');
+             break;
 
-          case 'status':
-            setLoading(true, event.message);
-            break;
+           case 'status':
+             setLoading(true, event.message);
+             appendProgressMessage(`状态: ${event.message}`, 'info');
+             break;
 
-          case 'todo_created':
-            // 直接使用事件中的 items 显示 TODO
-            console.log('todo_created event:', event);
-            if (event.items && event.items.length > 0) {
-              // 后端发送的 items 已经是 {description, completed} 格式
-              updateTodoDisplay({
-                tasks: event.items,
-                completed_count: 0,
-                total_count: event.items.length,
-              });
-            } else {
-              console.warn('todo_created event has no items:', event);
-            }
-            break;
+           case 'todo_created':
+             // 直接使用事件中的 items 显示 TODO
+             console.log('todo_created event:', event);
+             if (event.items && event.items.length > 0) {
+               appendProgressMessage(`已创建任务列表，共 ${event.items.length} 个任务`, 'success');
+               // 后端发送的 items 已经是 {description, completed} 格式
+               updateTodoDisplay({
+                 tasks: event.items,
+                 completed_count: 0,
+                 total_count: event.items.length,
+               });
+             } else {
+               console.warn('todo_created event has no items:', event);
+               appendProgressMessage('任务列表创建失败，未获取到任务项', 'warning');
+             }
+             break;
 
-          case 'tool_calls':
-            appendToolCalls(event.tools);
-            break;
+           case 'tool_calls':
+             if (event.tools && event.tools.length > 0) {
+               const toolNames = event.tools.map(t => t.name || '未知工具').join(', ');
+               appendProgressMessage(`正在调用工具: ${toolNames}`, 'info');
+             }
+             appendToolCalls(event.tools);
+             break;
+             
+           case 'tool_call':
+             // 单个工具调用事件
+             handleToolCallEvent(event);
+             break;
 
-          case 'response':
-            appendAssistantMessage(renderMarkdown(event.content));
-            break;
+           case 'response':
+             appendProgressMessage('正在生成最终响应...', 'info');
+             appendAssistantMessage(renderMarkdown(event.content));
+             appendProgressMessage('响应生成完成', 'success');
+             break;
 
-          case 'auto_continue':
-            appendIterationBlock('AUTO CONTINUE', event.content);
-            break;
+           case 'auto_continue':
+             appendProgressMessage('检测到任务未完成，自动继续执行...', 'info');
+             appendIterationBlock('AUTO CONTINUE', event.content);
+             break;
 
           case 'note':
             appendIterationBlock('NOTE', event.content);
@@ -502,9 +693,10 @@ async function sendMessage(text) {
             $todoContent.innerHTML = '<div class="todo-empty">task completed</div>';
             break;
 
-          case 'error':
-            appendError(event.message);
-            break;
+           case 'error':
+             appendProgressMessage(`错误: ${event.message}`, 'error');
+             appendError(event.message);
+             break;
 
           case 'done':
             setLoading(false);
@@ -522,9 +714,10 @@ async function sendMessage(text) {
     }
   }
 
-  setBusy(false);
-  currentAbortController = null;
-  scrollToBottom();
+   setBusy(false);
+   currentAbortController = null;
+   appendProgressMessage('本次对话处理完成', 'success');
+   scrollToBottom();
 }
 
 async function newChat() {
@@ -588,3 +781,122 @@ $btnRefreshTodo.addEventListener('click', loadTodo);
 newChat();
 loadSkills();
 loadTools();
+
+// 确保输入框始终可见且可输入
+$input.style.display = 'block';
+$input.style.visibility = 'visible';
+$input.style.opacity = '1';
+
+// 监听窗口大小变化，确保输入框始终可见
+window.addEventListener('resize', () => {
+  $input.style.display = 'block';
+  $input.style.visibility = 'visible';
+});
+
+// 点击消息区域时，让输入框获得焦点
+$messages.addEventListener('click', () => {
+  $input.focus();
+});
+
+// 定期检查输入框状态
+setInterval(() => {
+  if ($input.style.display !== 'block') {
+    $input.style.display = 'block';
+  }
+  if ($input.style.visibility !== 'visible') {
+    $input.style.visibility = 'visible';
+  }
+}, 1000);
+
+// ── resizable sidebars ──
+
+function initResizers() {
+  const app = document.getElementById('app');
+  
+  // 创建左侧拖动条
+  const resizerLeft = document.createElement('div');
+  resizerLeft.className = 'resizer resizer-left';
+  resizerLeft.id = 'resizer-left';
+  app.appendChild(resizerLeft);
+  
+  // 创建右侧拖动条
+  const resizerRight = document.createElement('div');
+  resizerRight.className = 'resizer resizer-right';
+  resizerRight.id = 'resizer-right';
+  app.appendChild(resizerRight);
+  
+  let currentResizer = null;
+  let startX = 0;
+  let startSidebarWidth = 0;
+  
+  // 拖动开始
+  function initDrag(e, resizer) {
+    currentResizer = resizer;
+    startX = e.pageX;
+    
+    const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
+    startSidebarWidth = parseInt(sidebarWidth) || 220;
+    
+    resizer.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+  
+  // 拖动中
+  function doDrag(e) {
+    if (!currentResizer) return;
+    
+    const diffX = e.pageX - startX;
+    let newWidth;
+    
+    if (currentResizer.id === 'resizer-left') {
+      // 左侧侧边栏
+      newWidth = startSidebarWidth + diffX;
+      newWidth = Math.max(150, Math.min(400, newWidth)); // 限制范围
+      document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
+    } else if (currentResizer.id === 'resizer-right') {
+      // 右侧侧边栏
+      newWidth = startSidebarWidth - diffX;
+      newWidth = Math.max(180, Math.min(450, newWidth)); // 限制范围
+      document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');
+    }
+    
+    // 更新拖动条位置
+    updateResizerPositions();
+  }
+  
+  // 拖动结束
+  function endDrag() {
+    if (currentResizer) {
+      currentResizer.classList.remove('active');
+      currentResizer = null;
+    }
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+  
+  // 更新拖动条位置
+  function updateResizerPositions() {
+    const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width').trim();
+    const rightSidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--right-sidebar-width').trim();
+    
+    resizerLeft.style.left = sidebarWidth + 'px';
+    resizerRight.style.right = rightSidebarWidth + 'px';
+  }
+  
+  // 绑定事件
+  resizerLeft.addEventListener('mousedown', (e) => initDrag(e, resizerLeft));
+  resizerRight.addEventListener('mousedown', (e) => initDrag(e, resizerRight));
+  
+  document.addEventListener('mousemove', doDrag);
+  document.addEventListener('mouseup', endDrag);
+  
+  // 初始化位置
+  updateResizerPositions();
+  
+  // 窗口大小变化时更新位置
+  window.addEventListener('resize', updateResizerPositions);
+}
+
+// 初始化拖动功能
+initResizers();

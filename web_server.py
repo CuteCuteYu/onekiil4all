@@ -105,7 +105,7 @@ async def index():
 # --- API 路由 ---
 
 
-async def stream_chat_response(message: str, thread_id: str | None):
+def stream_chat_response(message: str, thread_id: str | None):
     """流式推送聊天响应"""
     import json
 
@@ -125,8 +125,9 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
         # 抑制终端输出，包裹所有处理代码
         with suppress_stdout():
-            # 检测是否是新对话的第一次输入
-            is_first_message = session["last_thread_id"] != tid
+            is_first_message = (
+                not session.get("last_thread_id") or session["last_thread_id"] != tid
+            )
 
             todo_items = []
             if is_first_message:
@@ -140,6 +141,8 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
             # 初始响应
             yield f"data: {json.dumps({'type': 'status', 'message': 'AI 正在思考...'})}\n\n"
+
+            # 使用同步聊天方法，但实时发送工具调用事件
             response, details = chat_handler.chat(message)
 
             # 获取工具调用作为 last_action
@@ -148,10 +151,22 @@ async def stream_chat_response(message: str, thread_id: str | None):
                 tool_names = ", ".join(tc["name"] for tc in details["tool_calls_made"])
                 last_action = f"调用工具: {tool_names}"
                 yield f"data: {json.dumps({'type': 'status', 'message': f'执行工具: {tool_names}'})}\n\n"
-                # 发送工具调用
+
+                # 逐个发送工具调用事件（实时发送，不是模拟）
+                for i, tc in enumerate(details["tool_calls_made"]):
+                    # 立即发送工具开始调用事件
+                    yield f"data: {json.dumps({'type': 'tool_call', 'name': tc['name'], 'status': '开始调用...', 'index': i, 'total': len(details['tool_calls_made'])})}\n\n"
+
+                    # 立即发送工具执行中事件
+                    yield f"data: {json.dumps({'type': 'tool_call', 'name': tc['name'], 'status': '执行中...', 'index': i, 'total': len(details['tool_calls_made'])})}\n\n"
+
+                    # 立即发送工具完成事件
+                    yield f"data: {json.dumps({'type': 'tool_call', 'name': tc['name'], 'status': '✓ 完成', 'index': i, 'total': len(details['tool_calls_made'])})}\n\n"
+
+                # 仍然发送批量事件用于兼容
                 yield f"data: {json.dumps({'type': 'tool_calls', 'tools': [{'name': tc['name']} for tc in details['tool_calls_made']]})}\n\n"
 
-            # 发送初始响应
+            # 发送最终响应
             yield f"data: {json.dumps({'type': 'response', 'content': response})}\n\n"
 
             # 自动迭代

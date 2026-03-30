@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具调用测试</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            padding: 20px;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--mono);
+        }
+        
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .test-button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--mono);
+            margin-bottom: 20px;
+        }
+        
+        .test-button:hover {
+            opacity: 0.9;
+        }
+        
+        #test-output {
+            border: 1px solid var(--line);
+            padding: 20px;
+            border-radius: 4px;
+            min-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>工具调用显示测试</h1>
+        <button class="test-button" onclick="testToolCalls()">测试工具调用显示</button>
+        
+        <div id="test-output">
+            <div class="empty-state">
+                <div class="empty-state-title">测试输出区域</div>
+                <div class="empty-state-sub">点击按钮测试工具调用显示效果</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+    <script>
+        // 模拟消息容器
+        const $messages = document.getElementById('test-output');
+        
+        // 重写 scrollToBottom 函数
+        function scrollToBottom() {
+            $messages.scrollTop = $messages.scrollHeight;
+        }
+        
+        // 重写 removeEmptyState 函数
+        function removeEmptyState() {
+            const emptyState = $messages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+        }
+        
+        // 测试工具调用
+        function testToolCalls() {
+            removeEmptyState();
+            
+            // 模拟工具调用数据
+            const mockTools = [
+                { name: 'web_search', description: '搜索网络信息' },
+                { name: 'read_file', description: '读取配置文件' },
+                { name: 'bash_command', description: '执行系统命令' },
+                { name: 'edit_file', description: '编辑代码文件' }
+            ];
+            
+            // 调用修改后的 appendToolCalls 函数
+            appendToolCalls(mockTools);
+        }
+        
+        // 导出函数供测试使用
+        window.appendToolCalls = appendToolCalls;
+        window.removeEmptyState = removeEmptyState;
+        window.scrollToBottom = scrollToBottom;
+    </script>
+</body>
+</html>

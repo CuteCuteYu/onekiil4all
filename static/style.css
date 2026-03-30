@@ -14,6 +14,10 @@
   --mono: 'DM Mono', 'Consolas', monospace;
   --sidebar-width: 220px;
   --right-sidebar-width: 260px;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --resizer-width: 4px;
 }
 
 html, body {
@@ -33,6 +37,35 @@ html, body {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr var(--right-sidebar-width);
   height: 100vh;
+  position: relative;
+  /* 确保网格不会被子元素影响 */
+  justify-content: start;
+}
+
+/* ── resizer (drag handles) ── */
+
+.resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--resizer-width);
+  cursor: col-resize;
+  background: transparent;
+  z-index: 1000;
+  transition: background 0.2s;
+}
+
+.resizer:hover,
+.resizer.active {
+  background: var(--accent);
+}
+
+.resizer-left {
+  left: var(--sidebar-width);
+}
+
+.resizer-right {
+  right: var(--right-sidebar-width);
 }
 
 /* ── sidebars ── */
@@ -153,6 +186,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ── header ── */
@@ -210,7 +244,9 @@ html, body {
 
 .messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px 24px;
   scroll-behavior: smooth;
 }
@@ -403,6 +439,70 @@ html, body {
   font-style: italic;
 }
 
+/* ── tool calls ── */
+
+.tool-calls-container {
+  margin-bottom: 16px;
+}
+
+.tool-call-header {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.tool-call-item {
+  animation: fadeInUp 0.3s ease-out;
+  margin-bottom: 8px;
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.tool-call-item .msg-role {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.tool-call-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-call-name {
+  font-weight: 500;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.tool-call-desc {
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.tool-call-status {
+  font-size: 10px;
+  color: var(--success);
+  padding: 2px 6px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ── pending queue ── */
 
 .pending-queue {
@@ -455,6 +555,9 @@ html, body {
   flex-shrink: 0;
   padding: 12px 24px 16px;
   border-top: 1px solid var(--line);
+  background: var(--bg);
+  z-index: 100;
+  position: relative;
 }
 
 .input-row {
@@ -477,6 +580,9 @@ html, body {
   resize: none;
   min-height: 18px;
   max-height: 100px;
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
 }
 #msg-input::placeholder {
   color: var(--fg-dim);
