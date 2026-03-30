@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv add:*)"
+      "Bash(uv add:*)",
+      "Bash(ls -la D:/code/ai/onekiil4all/*.py)",
+      "Bash(dir /B D:codeaionekiil4all*.py)"
     ]
   }
 }
