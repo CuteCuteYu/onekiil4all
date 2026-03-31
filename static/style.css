@@ -1,7 +1,7 @@
 /**
- * onekiil4all 应用程序样式表
+ * 上古必斩必杀 应用程序样式表
  * 描述: 定义整个应用的视觉风格和布局
- * 作者: onekiil4all
+ * 作者: CuteCuteYu
  * 主题: 深色极简主义风格，采用暗色调配色方案
  */
 
@@ -137,6 +137,18 @@ html, body {
   border-right: 1px solid var(--line);  /* 左侧边框 */
   background: var(--bg-elevated);        /* 提升层背景 */
   height: 100%;
+}
+
+/**
+ * 左侧边栏滚动容器
+ */
+.sidebar-left-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /**
@@ -1171,6 +1183,238 @@ html, body {
 
 
 /* ═══════════════════════════════════════════════════════════════
+   告警面板样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 告警面板容器
+ */
+.alerts-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/**
+ * 告警添加区域
+ */
+.alert-add {
+  display: flex;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  gap: 6px;
+}
+
+.alert-add input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.alert-add input:focus {
+  border-color: var(--fg-muted);
+}
+
+.alert-add input::placeholder {
+  color: var(--fg-dim);
+}
+
+.btn-add {
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-add:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+/**
+ * 告警列表
+ */
+.alerts-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+/**
+ * 告警项
+ */
+.alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+}
+
+.alert-item.disabled {
+  opacity: 0.5;
+}
+
+.alert-item.disabled .alert-keyword {
+  text-decoration: line-through;
+}
+
+.alert-keyword {
+  font-size: 10px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.alert-keyword:hover {
+  color: var(--fg-muted);
+  text-decoration: underline;
+}
+
+.alert-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.alert-btn {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 9px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.alert-btn:hover {
+  color: var(--fg-muted);
+}
+
+.alert-btn.delete:hover {
+  color: var(--error);
+}
+
+.alert-empty {
+  color: var(--fg-dim);
+  font-size: 10px;
+  text-align: center;
+  padding: 20px;
+}
+
+/**
+ * 告警历史区域
+ */
+.alert-history {
+  border-top: 1px solid var(--line);
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 9px;
+  color: var(--fg-dim);
+  letter-spacing: 0.05em;
+}
+
+.btn-small {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 8px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.btn-small:hover {
+  color: var(--fg-muted);
+}
+
+.alert-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 8px;
+}
+
+/**
+ * 告警历史项
+ */
+.alert-history-item {
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+}
+
+.alert-history-item .alert-keyword {
+  font-size: 9px;
+  color: var(--fg-muted);
+}
+
+.alert-history-item .alert-title {
+  font-size: 10px;
+  color: var(--fg);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.alert-history-item .alert-meta {
+  font-size: 8px;
+  color: var(--fg-dim);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.alert-source-tag {
+  background: var(--line);
+  padding: 1px 4px;
+  font-size: 8px;
+}
+
+.alert-empty-small {
+  color: var(--fg-dim);
+  font-size: 9px;
+  text-align: center;
+  padding: 10px;
+}
+
+/**
+ * 新告警通知动画
+ */
+@keyframes alertPulse {
+  0%, 100% { border-color: var(--line); }
+  50% { border-color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+}
+
+.alert-item.new {
+  animation: alertPulse 1s ease-in-out 3;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
    热点资讯面板样式
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1200,6 +1444,35 @@ html, body {
 .intelligence-content {
   flex: 1;
   overflow-y: auto;
+}
+
+/**
+ * 告警标签页特殊处理
+ */
+#tab-alerts {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+#tab-alerts.active {
+  display: flex;
+}
+
+#tab-alerts .alert-add {
+  flex-shrink: 0;
+}
+
+#tab-alerts .alerts-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#tab-alerts .alert-history {
+  flex-shrink: 0;
+  max-height: 150px;
 }
 
 /**

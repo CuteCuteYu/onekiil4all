@@ -4,7 +4,7 @@ FastAPI Web Server - Web服务器模块
 ========================================
 功能: 提供 REST API 接口供前端和其他程序调用
 包括: 聊天接口、历史记录管理、技能列表、工具列表、热点资讯等
-作者: onekiil4all
+ 作者: 上古必斩必杀
 """
 
 # ═══════════════════════════════════════════════════════════════
@@ -21,7 +21,7 @@ from contextlib import asynccontextmanager, contextmanager
 # 导入FastAPI和相关依赖
 # ═══════════════════════════════════════════════════════════════
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -127,18 +127,51 @@ async def lifespan(app: FastAPI):
     FastAPI生命周期管理
     应用启动和关闭时的处理逻辑
     """
-    print("Web server started")  # 服务器启动提示
+    print("Web server started")
+
+    alert_queue: asyncio.Queue = app.state.alert_queue
+
+    async def alert_checker():
+        """后台告警检查任务，每秒执行一次"""
+        import asyncio
+        from web.trends import get_trends
+
+        while True:
+            try:
+                await asyncio.sleep(1)
+
+                trends = await asyncio.to_thread(get_trends, check_alerts=True)
+                new_alerts = trends.get("new_alerts", [])
+
+                for alert_event in new_alerts:
+                    await alert_queue.put(alert_event)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"Alert check error: {e}")
+
+    alert_checker_task = asyncio.create_task(alert_checker())
+
     yield
-    print("Web server stopped")  # 服务器关闭提示
+
+    alert_checker_task.cancel()
+    try:
+        await alert_checker_task
+    except asyncio.CancelledError:
+        pass
+    print("Web server stopped")
 
 
 # 创建FastAPI应用实例
 app = FastAPI(
-    title="onekiil4all API",
+    title="上古必斩必杀 API",
     description="AI 聊天系统 API",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.state.alert_queue = asyncio.Queue()
 
 # ═══════════════════════════════════════════════════════════════
 # CORS中间件配置
@@ -172,6 +205,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def index():
     """返回主页HTML文件"""
     return FileResponse("static/index.html")
+
+
+@app.get("/alert")
+async def alert_page(keyword: str | None = None):
+    """返回告警详情页面"""
+    return FileResponse("static/alert.html")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -552,6 +591,122 @@ async def api_get_trends():
     from web.trends import get_trends
 
     return get_trends()
+
+
+@app.get("/api/alerts")
+async def api_get_alerts():
+    """获取所有告警规则"""
+    from web.alert_manager import alert_manager
+
+    alerts = alert_manager.get_all_alerts()
+    return {"alerts": [a.to_dict() for a in alerts]}
+
+
+@app.post("/api/alerts")
+async def api_create_alert(request: Request):
+    """创建新的告警规则"""
+    from web.alert_manager import alert_manager
+
+    try:
+        body = await request.json()
+        keyword = body.get("keyword", "").strip()
+        if not keyword:
+            raise HTTPException(status_code=400, detail="关键词不能为空")
+
+        alert = alert_manager.add_alert(keyword)
+        return {"alert": alert.to_dict()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建失败: {e}")
+
+
+@app.delete("/api/alerts/{alert_id}")
+async def api_delete_alert(alert_id: str):
+    """删除告警规则"""
+    from web.alert_manager import alert_manager
+
+    deleted = alert_manager.remove_alert(alert_id)
+    if deleted:
+        return {"deleted": True}
+    raise HTTPException(status_code=404, detail="告警规则不存在")
+
+
+@app.post("/api/alerts/{alert_id}/toggle")
+async def api_toggle_alert(alert_id: str):
+    """切换告警启用/禁用状态"""
+    from web.alert_manager import alert_manager
+
+    success = alert_manager.toggle_alert(alert_id)
+    if success:
+        alerts = alert_manager.get_all_alerts()
+        alert = next((a for a in alerts if a.id == alert_id), None)
+        return {"alert": alert.to_dict() if alert else None}
+    raise HTTPException(status_code=404, detail="告警规则不存在")
+
+
+@app.get("/api/alerts/history")
+async def api_get_alert_history(limit: int = 50):
+    """获取告警历史记录"""
+    from web.alert_manager import alert_manager
+
+    history = alert_manager.get_history(limit)
+    return {"history": [h.to_dict() for h in history]}
+
+
+@app.delete("/api/alerts/history/all")
+async def api_clear_alert_history_all():
+    """清空告警历史"""
+    from web.alert_manager import alert_manager
+
+    alert_manager.clear_history()
+    return {"cleared": True}
+
+
+@app.get("/api/alerts/timeline/{keyword}")
+async def api_get_alert_timeline(keyword: str):
+    """获取关键词的事件时间线"""
+    from web.alert_manager import alert_manager
+
+    timeline = alert_manager.get_timeline(keyword)
+    return {"keyword": keyword, "timeline": [h.to_dict() for h in timeline]}
+
+
+@app.delete("/api/alerts/history")
+async def api_clear_alert_history():
+    """清空告警历史"""
+    from web.alert_manager import alert_manager
+
+    alert_manager.clear_history()
+    return {"cleared": True}
+
+
+@app.get("/api/alerts/stream")
+async def api_alerts_stream(request: Request):
+    """
+    告警事件流 - SSE
+    后台定时检查并推送新告警事件
+    """
+    alert_queue = request.app.state.alert_queue
+
+    async def event_generator():
+        while True:
+            try:
+                alert_event = await asyncio.wait_for(alert_queue.get(), timeout=30)
+                yield f"data: {json.dumps({'type': 'alert', 'event': alert_event})}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            except GeneratorExit:
+                break
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+import json
 
 
 @app.delete("/api/history/{thread_id}")

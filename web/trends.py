@@ -4,7 +4,7 @@ Trends - 热点资讯获取模块
 ========================================
 功能: 获取并整合各类热点资讯数据
 包括: 热搜榜单、GitHub趋势、科技新闻
-作者: onekiil4all
+ 作者: 上古必斩必杀
 """
 
 # ═══════════════════════════════════════════════════════════════
@@ -12,11 +12,40 @@ Trends - 热点资讯获取模块
 # ═══════════════════════════════════════════════════════════════
 
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# 创建线程池，全局复用
+_executor = ThreadPoolExecutor(max_workers=8)
 
 
-def get_trends() -> dict:
+def _fetch_platform(platform: str) -> tuple[str, list]:
+    """获取单个平台的数据"""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        res = requests.get(
+            f"https://orz.ai/api/v1/dailynews/?platform={platform}",
+            headers=headers,
+            timeout=15,
+        )
+        if res.status_code == 200:
+            json_data = res.json()
+            data = (
+                json_data.get("data", []) if isinstance(json_data, dict) else json_data
+            )
+            return platform, data if isinstance(data, list) else []
+        return platform, []
+    except Exception:
+        return platform, []
+
+
+def get_trends(check_alerts: bool = False) -> dict:
     """
     获取热门搜索和情报信息
+
+    参数:
+        check_alerts: 是否检查并触发告警，默认False
 
     从多个平台获取热点数据：
     - 热搜平台: 百度、微博、知乎、抖音、B站
@@ -28,11 +57,10 @@ def get_trends() -> dict:
         - hot_search: 热搜列表
         - github: GitHub趋势列表
         - tech_news: 科技新闻列表
+        - new_alerts: 新触发的告警事件（仅当check_alerts=True时）
     """
-    # 初始化返回数据结构
     trends_data = {"hot_search": [], "github": [], "tech_news": []}
 
-    # 平台分类映射
     platform_map = {
         "hot_search": ["baidu", "weibo", "zhihu", "douyin", "bilibili"],
         "github": ["github"],
@@ -40,103 +68,62 @@ def get_trends() -> dict:
     }
 
     try:
-        # 设置请求头，模拟浏览器访问
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-
-        # 合并所有平台
         platforms = (
             platform_map.get("hot_search", [])
             + platform_map.get("github", [])
             + platform_map.get("tech_news", [])
         )
 
-        # 遍历每个平台获取数据
-        for platform in platforms:
-            try:
-                # 发送HTTP GET请求
-                res = requests.get(
-                    f"https://orz.ai/api/v1/dailynews/?platform={platform}",
-                    headers=headers,
-                    timeout=15,  # 15秒超时
+        futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
+
+        for future in as_completed(futures):
+            platform, data = future.result()
+
+            if platform in platform_map["hot_search"]:
+                trends_data["hot_search"].extend(
+                    [
+                        {
+                            "word": item.get("title", ""),
+                            "raw_word": item.get("title", ""),
+                            "source": item.get("source", platform),
+                            "url": item.get("url", ""),
+                        }
+                        for item in data[:15]
+                    ]
                 )
 
-                # 检查响应状态
-                if res.status_code == 200:
-                    json_data = res.json()
-                    # 获取数据列表
-                    data = (
-                        json_data.get("data", [])
-                        if isinstance(json_data, dict)
-                        else json_data
-                    )
+            elif platform in platform_map["github"]:
+                if data:
+                    trends_data["github"] = [
+                        {
+                            "name": item.get("title", "").split("/")[-1]
+                            if "/" in item.get("title", "")
+                            else item.get("title", ""),
+                            "full_name": item.get("title", ""),
+                            "description": item.get("content", ""),
+                            "stars": 0,
+                            "url": item.get("url", ""),
+                            "language": item.get("source", ""),
+                        }
+                        for item in data[:10]
+                    ]
 
-                    # ═══════════════════════════════════════════════════════
-                    # 处理热搜数据
-                    # ═══════════════════════════════════════════════════════
-                    if platform in platform_map["hot_search"]:
-                        if isinstance(data, list):
-                            trends_data["hot_search"].extend(
-                                [
-                                    {
-                                        "word": item.get("title", ""),  # 标题
-                                        "raw_word": item.get("title", ""),  # 原始标题
-                                        "source": item.get("source", platform),  # 来源
-                                        "url": item.get("url", ""),  # 链接
-                                    }
-                                    for item in data[:15]  # 取前15条
-                                ]
-                            )
+            elif platform in platform_map["tech_news"]:
+                trends_data["tech_news"].extend(
+                    [
+                        {
+                            "title": item.get("title", ""),
+                            "url": item.get("url", ""),
+                            "source": item.get("source", platform),
+                        }
+                        for item in data[:10]
+                    ]
+                )
 
-                    # ═══════════════════════════════════════════════════════
-                    # 处理GitHub趋势数据
-                    # ═══════════════════════════════════════════════════════
-                    elif platform in platform_map["github"]:
-                        if isinstance(data, list):
-                            trends_data["github"] = [
-                                {
-                                    "name": item.get("title", "").split("/")[-1]
-                                    if "/" in item.get("title", "")
-                                    else item.get("title", ""),  # 项目名称
-                                    "full_name": item.get("title", ""),  # 完整名称
-                                    "description": item.get("content", ""),  # 项目描述
-                                    "stars": 0,  # 星级（暂无）
-                                    "url": item.get("url", ""),  # 项目链接
-                                    "language": item.get("source", ""),  # 编程语言
-                                }
-                                for item in data[:10]  # 取前10条
-                            ]
-
-                    # ═══════════════════════════════════════════════════════
-                    # 处理科技新闻数据
-                    # ═══════════════════════════════════════════════════════
-                    elif platform in platform_map["tech_news"]:
-                        if isinstance(data, list):
-                            trends_data["tech_news"].extend(
-                                [
-                                    {
-                                        "title": item.get("title", ""),  # 文章标题
-                                        "url": item.get("url", ""),  # 文章链接
-                                        "source": item.get("source", platform),  # 来源
-                                    }
-                                    for item in data[:10]  # 取前10条
-                                ]
-                            )
-            except Exception:
-                # 单个平台失败不影响其他平台
-                pass
-
-        # ═══════════════════════════════════════════════════════════════
-        # 处理空数据情况
-        # ═══════════════════════════════════════════════════════════════
-
-        # 如果没有热搜数据，添加提示
         if not trends_data["hot_search"]:
             trends_data["hot_search"] = [
                 {"word": "暂无数据", "raw_word": "", "source": "", "url": ""}
             ]
-        # 如果没有GitHub数据
         if not trends_data["github"]:
             trends_data["github"] = [
                 {
@@ -148,17 +135,25 @@ def get_trends() -> dict:
                     "language": "",
                 }
             ]
-        # 如果没有科技新闻数据
         if not trends_data["tech_news"]:
             trends_data["tech_news"] = [{"title": "暂无数据", "url": "", "source": ""}]
+
+        if check_alerts:
+            from web.alert_manager import alert_manager
+
+            new_events = alert_manager.check_alerts(trends_data)
+            if new_events:
+                trends_data["new_alerts"] = [e.to_dict() for e in new_events]
 
         return trends_data
 
     except Exception as e:
-        # 发生错误时返回错误信息
-        return {
+        result = {
             "error": str(e),
             "hot_search": [],
             "github": [],
             "tech_news": [],
         }
+        if check_alerts:
+            result["new_alerts"] = []
+        return result

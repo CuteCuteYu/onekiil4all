@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+  上古必斩必杀 - 告警详情页面
+  作者: CuteCuteYu
+  描述: 展示告警事件时间线和详细信息
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALERT - 上古必斩必杀</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/alert.css">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar-left">
+      <div class="sidebar-header">
+        <span class="sidebar-title">ALERT</span>
+        <button class="btn-icon" id="btn-back">BACK</button>
+      </div>
+      
+      <div class="alert-detail-header">
+        <div class="alert-keyword-display" id="alert-keyword-display">
+          <span class="keyword-label">关键词</span>
+          <span class="keyword-value" id="keyword-value">--</span>
+        </div>
+        <div class="alert-stats" id="alert-stats">
+          <div class="stat-item">
+            <span class="stat-value" id="total-events">0</span>
+            <span class="stat-label">EVENTS</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="alert-filter">
+        <input type="text" id="search-input" placeholder="搜索事件...">
+      </div>
+      
+      <div class="timeline-list" id="timeline-list">
+        <div class="list-loading">loading...</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="header">
+        <div class="header-title">上古必斩必杀</div>
+        <div class="header-right">
+          <a href="/" class="btn-home" id="btn-home">HOME</a>
+        </div>
+      </header>
+
+      <div class="detail-view" id="detail-view">
+        <div class="detail-empty">
+          <div class="empty-state-title">ALERT DETAIL</div>
+          <div class="empty-state-sub">select an event to view details</div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="sidebar-right">
+      <div class="info-panel">
+        <div class="panel-header">
+          <span class="panel-title">INFO</span>
+        </div>
+        <div class="info-content" id="info-content">
+          <div class="info-item">
+            <span class="info-label">KEYWORD</span>
+            <span class="info-value" id="info-keyword">--</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">CREATED</span>
+            <span class="info-value" id="info-created">--</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">TOTAL</span>
+            <span class="info-value" id="info-total">0</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sources-panel">
+        <div class="panel-header">
+          <span class="panel-title">SOURCES</span>
+        </div>
+        <div class="sources-content" id="sources-content">
+          <div class="source-item">
+            <span class="source-name">hotsearch</span>
+            <span class="source-count" id="count-hotsearch">0</span>
+          </div>
+          <div class="source-item">
+            <span class="source-name">github</span>
+            <span class="source-count" id="count-github">0</span>
+          </div>
+          <div class="source-item">
+            <span class="source-name">tech_news</span>
+            <span class="source-count" id="count-tech">0</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
+  <script src="/static/alert.js"></script>
+</body>
+</html>

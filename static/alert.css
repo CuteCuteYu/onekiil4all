@@ -1,0 +1,358 @@
+/**
+ * 上古必斩必杀 告警详情页面样式表
+ * 描述: 告警时间线和详情展示
+ * 作者: CuteCuteYu
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   告警详情页面特定样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * 告警详情头部
+ */
+.alert-detail-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.alert-keyword-display {
+  margin-bottom: 12px;
+}
+
+.keyword-label {
+  display: block;
+  font-size: 9px;
+  color: var(--fg-dim);
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.keyword-value {
+  font-size: 16px;
+  color: var(--fg);
+  font-family: var(--serif);
+}
+
+.alert-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 20px;
+  color: var(--fg-muted);
+  font-family: var(--mono);
+}
+
+.stat-label {
+  font-size: 8px;
+  color: var(--fg-dim);
+  letter-spacing: 0.1em;
+}
+
+/**
+ * 告警筛选
+ */
+.alert-filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.alert-filter input {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.alert-filter input:focus {
+  border-color: var(--fg-muted);
+}
+
+.alert-filter input::placeholder {
+  color: var(--fg-dim);
+}
+
+/**
+ * 时间线列表
+ */
+.timeline-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/**
+ * 时间线项
+ */
+.timeline-item {
+  position: relative;
+  padding-left: 24px;
+  padding-bottom: 16px;
+  cursor: pointer;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  border: 2px solid var(--bg);
+}
+
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 18px;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+
+.timeline-item:hover::before {
+  background: var(--fg-muted);
+}
+
+.timeline-item.active::before {
+  background: var(--warning);
+  box-shadow: 0 0 8px var(--warning);
+}
+
+.timeline-item .timeline-time {
+  font-size: 9px;
+  color: var(--fg-dim);
+  margin-bottom: 4px;
+}
+
+.timeline-item .timeline-title {
+  font-size: 11px;
+  color: var(--fg);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.timeline-item .timeline-source {
+  display: inline-block;
+  font-size: 8px;
+  color: var(--fg-muted);
+  background: var(--line);
+  padding: 1px 4px;
+  margin-top: 4px;
+}
+
+.timeline-item .timeline-url {
+  display: none;
+}
+
+/**
+ * 详情视图
+ */
+.detail-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--fg-dim);
+}
+
+.detail-empty .empty-state-title {
+  font-size: 24px;
+  font-family: var(--serif);
+  color: var(--fg-muted);
+  margin-bottom: 8px;
+}
+
+.detail-empty .empty-state-sub {
+  font-size: 12px;
+}
+
+/**
+ * 详情内容
+ */
+.detail-content {
+  display: none;
+}
+
+.detail-content.active {
+  display: block;
+}
+
+.detail-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.detail-title {
+  font-size: 18px;
+  color: var(--fg);
+  font-family: var(--serif);
+  margin-bottom: 8px;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+
+.detail-body {
+  padding: 16px 0;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-section-title {
+  font-size: 10px;
+  color: var(--fg-dim);
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 11px;
+  transition: all .2s;
+}
+
+.detail-link:hover {
+  border-color: var(--fg-muted);
+  background: var(--line);
+}
+
+/**
+ * 信息面板
+ */
+.info-panel {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line);
+}
+
+.info-content {
+  padding: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 9px;
+  color: var(--fg-dim);
+  letter-spacing: 0.05em;
+}
+
+.info-value {
+  font-size: 10px;
+  color: var(--fg);
+}
+
+/**
+ * 来源面板
+ */
+.sources-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.sources-content {
+  padding: 12px;
+}
+
+.source-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-surface);
+}
+
+.source-name {
+  font-size: 10px;
+  color: var(--fg);
+}
+
+.source-count {
+  font-size: 10px;
+  color: var(--fg-muted);
+  background: var(--line);
+  padding: 2px 6px;
+}
+
+/**
+ * 按钮
+ */
+.btn-home {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-size: 10px;
+  transition: all .2s;
+}
+
+.btn-home:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+/**
+ * 空状态
+ */
+.list-empty {
+  color: var(--fg-dim);
+  font-size: 10px;
+  text-align: center;
+  padding: 40px 20px;
+}

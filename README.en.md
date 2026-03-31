@@ -1,10 +1,10 @@
-# Onekiil4all
+# 上古必斩必杀
 
 AI Intelligent Assistant - Built with LangChain + DeepSeek
 
 ## Project Overview
 
-Onekiil4all is a powerful AI assistant that supports:
+上古必斩必杀 is a powerful AI assistant that supports:
 
 - **Smart Conversation**: Based on DeepSeek large language model
 - **Task Management**: Auto-generate and manage TODO lists
@@ -13,10 +13,11 @@ Onekiil4all is a powerful AI assistant that supports:
 
 ## Tech Stack
 
-- **Backend**: Python 3.11+, FastAPI, LangChain, LangGraph
+- **Backend**: Python 3.11+, FastAPI, **LangChain**, LangGraph
 - **AI Model**: DeepSeek Chat API
 - **Frontend**: Native HTML/CSS/JavaScript
 - **Architecture**: Agent architecture with tool calling and auto-iteration
+- **Reference**: LangChain, DeepAgents
 
 ## Project Structure
 
@@ -28,7 +29,8 @@ onekiil4all/
 │   ├── conversation.py       # Conversation management
 │   ├── task_analyzer.py      # Task analyzer
 │   ├── todo_manager.py       # TODO manager
-│   └── trends.py             # Trending data fetching
+│   ├── trends.py             # Trending data fetching (multi-threaded)
+│   └── alert_manager.py     # Alert management module
 ├── agent_set/                # Agent components
 │   ├── agent_set.py          # Agent creation
 │   ├── tools_set.py          # Tool set definitions
@@ -38,7 +40,13 @@ onekiil4all/
 ├── static/                   # Frontend static resources
 │   ├── index.html            # Main page
 │   ├── app.js                # Frontend logic
-│   └── style.css             # Stylesheet
+│   ├── style.css             # Stylesheet
+│   ├── alert.html            # Alert detail page
+│   ├── alert.js              # Alert detail page logic
+│   └── alert.css             # Alert detail page styles
+├── data/                     # Data storage directory
+│   ├── alerts.json           # Alert rules storage
+│   └── alert_history.json    # Alert history records
 ├── prompt/                   # Prompt configuration
 │   └── AGENTS.md             # Agent system prompts
 ├── chat_history/             # Conversation history storage
@@ -75,13 +83,22 @@ The system includes multiple built-in tools:
 
 ### 4. Intelligence Panel
 
-- **INTELLIGENCE Panel**: Display trending searches and tech news
+- **INTELLIGENCE Panel**: Display trending searches and tech news (data source: [orz.ai](https://orz.ai/))
   - HOT: Aggregated trending from multiple platforms (Baidu, Weibo, Zhihu, Douyin, Bilibili, etc.)
   - GITHUB: GitHub Trending projects
   - TECH: Tech news (少数派, 36Kr, 掘金, V2EX, Hacker News)
+  - ALERTS: Keyword monitoring and alerts
 - All items are clickable and link to original pages
 
-### 5. Frontend Features
+### 5. Keyword Monitoring & Alerts
+
+- **Add Monitoring**: Enter keywords in ALERTS tab to add monitoring
+- **Auto-detection**: Checks trending data every second, alerts immediately on match
+- **Real-time Push**: SSE pushes new alerts to frontend instantly
+- **Event Timeline**: Click keyword to view complete alert history
+- **Persistent Storage**: Alert rules and history stored in `data/` directory
+
+### 6. Frontend Features
 
 - **Real-time Progress**: Tool calling and task status update in real-time
 - **Responsive Design**: Adapts to different screen sizes
@@ -186,6 +203,7 @@ The service provides the following REST APIs:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Returns frontend page |
+| `/alert` | GET | Alert detail page |
 | `/static/*` | GET | Static resources |
 | `/api/chat` | POST | Send chat message (SSE streaming) |
 | `/api/new` | POST | Create new conversation |
@@ -196,6 +214,33 @@ The service provides the following REST APIs:
 | `/api/skills` | GET | Get available skills |
 | `/api/tools` | GET | Get available tools |
 | `/api/trends` | GET | Get trending and intelligence info |
+| `/api/alerts` | GET/POST | Get/create alert rules |
+| `/api/alerts/{id}` | DELETE | Delete alert rule |
+| `/api/alerts/{id}/toggle` | POST | Toggle alert status |
+| `/api/alerts/history` | GET | Get alert history |
+| `/api/alerts/history/all` | DELETE | Clear alert history |
+| `/api/alerts/timeline/{keyword}` | GET | Get keyword timeline |
+| `/api/alerts/stream` | GET | SSE alert stream (real-time push) |
+
+## Performance Optimization
+
+### Multi-threading Concurrency
+
+- **Trending Data Fetching**: Uses `ThreadPoolExecutor` to fetch data from multiple platforms concurrently, reducing time from ~165 seconds (sequential) to ~2 seconds
+- **Background Alert Checking**: Uses `asyncio.to_thread()` to avoid blocking main event loop, ensuring smooth UI responsiveness
+
+### Technical Details
+
+```python
+# trends.py - concurrent fetching
+_executor = ThreadPoolExecutor(max_workers=8)
+futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
+```
+
+```python
+# web_server.py - async execution
+trends = await asyncio.to_thread(get_trends, check_alerts=True)
+```
 
 ## FAQ
 
@@ -228,3 +273,4 @@ MIT License
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM application framework
 - [DeepSeek](https://www.deepseek.com/) - Large language model
 - [DeepAgents](https://github.com/deepagents) - Agent framework
+- [orz.ai](https://orz.ai/) - Trending data API provider

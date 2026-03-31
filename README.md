@@ -1,10 +1,10 @@
-# Onekiil4all
+# 上古必斩必杀
 
 AI 智能助手 - 基于 LangChain + DeepSeek 构建
 
 ## 项目简介
 
-Onekiil4all 是一个功能强大的 AI 助手，支持：
+上古必斩必杀 是一个功能强大的 AI 助手，支持：
 
 - **智能对话**：基于 DeepSeek 大语言模型
 - **任务管理**：自动生成和管理 TODO 列表
@@ -13,10 +13,11 @@ Onekiil4all 是一个功能强大的 AI 助手，支持：
 
 ## 技术栈
 
-- **后端**：Python 3.11+, FastAPI, LangChain, LangGraph
+- **后端**：Python 3.11+, FastAPI, **LangChain**, LangGraph
 - **AI 模型**：DeepSeek Chat API
 - **前端**：原生 HTML/CSS/JavaScript
 - **架构**：Agent 架构，支持工具调用和自动迭代
+- **参考框架**：LangChain、DeepAgents
 
 ## 项目结构
 
@@ -28,7 +29,8 @@ onekiil4all/
 │   ├── conversation.py       # 对话管理
 │   ├── task_analyzer.py      # 任务分析器
 │   ├── todo_manager.py       # TODO 管理器
-│   └── trends.py             # 热搜数据获取
+│   ├── trends.py             # 热搜数据获取（多线程并发）
+│   └── alert_manager.py      # 告警管理模块
 ├── agent_set/                # Agent 组件
 │   ├── agent_set.py          # Agent 创建
 │   ├── tools_set.py          # 工具集定义
@@ -38,7 +40,13 @@ onekiil4all/
 ├── static/                   # 前端静态资源
 │   ├── index.html            # 主页面
 │   ├── app.js                # 前端逻辑
-│   └── style.css             # 样式文件
+│   ├── style.css             # 样式文件
+│   ├── alert.html            # 告警详情页
+│   ├── alert.js              # 告警详情页逻辑
+│   └── alert.css             # 告警详情页样式
+├── data/                     # 数据存储目录
+│   ├── alerts.json           # 告警规则存储
+│   └── alert_history.json    # 告警历史记录
 ├── prompt/                   # 提示词配置
 │   └── AGENTS.md             # Agent 系统提示
 ├── chat_history/             # 对话历史存储
@@ -75,13 +83,22 @@ onekiil4all/
 
 ### 4. 情报分析面板
 
-- **INTELLIGENCE 面板**：展示热门搜索和科技资讯
+- **INTELLIGENCE 面板**：展示热门搜索和科技资讯（数据来源：[orz.ai](https://orz.ai/)）
   - HOT：聚合多个平台的热门热搜（百度、微博、知乎、抖音、B站等）
   - GITHUB：GitHub Trending 项目
   - TECH：科技新闻（少数派、36氪、掘金、V2EX、Hacker News）
+  - ALERTS：关键词监控和告警
 - 所有条目可点击跳转原始页面
 
-### 5. 前端界面特性
+### 5. 关键词监控与告警
+
+- **添加监控**：在 ALERTS 标签页输入关键词添加监控
+- **自动检测**：每秒自动检查热点数据，发现匹配关键词立即告警
+- **实时推送**：通过 SSE 实时推送新告警到前端
+- **事件时间线**：点击关键词查看完整的告警事件历史
+- **持久化存储**：告警规则和历史记录保存在 `data/` 目录
+
+### 6. 前端界面特性
 
 - **实时进度显示**：工具调用、任务状态实时更新
 - **响应式设计**：适配不同屏幕尺寸
@@ -186,6 +203,7 @@ model = ChatOpenAI(
 | 接口 | 方法 | 说明 |
 |-----|------|-----|
 | `/` | GET | 返回前端页面 |
+| `/alert` | GET | 告警详情页面 |
 | `/static/*` | GET | 静态资源 |
 | `/api/chat` | POST | 发送聊天消息（SSE 流式） |
 | `/api/new` | POST | 创建新对话 |
@@ -196,6 +214,33 @@ model = ChatOpenAI(
 | `/api/skills` | GET | 获取可用技能 |
 | `/api/tools` | GET | 获取可用工具 |
 | `/api/trends` | GET | 获取热门搜索和情报信息 |
+| `/api/alerts` | GET/POST | 获取/创建告警规则 |
+| `/api/alerts/{id}` | DELETE | 删除告警规则 |
+| `/api/alerts/{id}/toggle` | POST | 切换告警状态 |
+| `/api/alerts/history` | GET | 获取告警历史 |
+| `/api/alerts/history/all` | DELETE | 清空告警历史 |
+| `/api/alerts/timeline/{keyword}` | GET | 获取关键词时间线 |
+| `/api/alerts/stream` | GET | SSE 告警流（实时推送） |
+
+## 性能优化
+
+### 多线程并发
+
+- **热点数据获取**：使用 `ThreadPoolExecutor` 并发获取多个平台数据，原来串行获取需要约 165 秒，优化后仅需约 2 秒
+- **后台告警检查**：使用 `asyncio.to_thread()` 避免阻塞主事件循环，确保 UI 响应流畅
+
+### 技术细节
+
+```python
+# trends.py - 并发获取
+_executor = ThreadPoolExecutor(max_workers=8)
+futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
+```
+
+```python
+# web_server.py - 异步执行
+trends = await asyncio.to_thread(get_trends, check_alerts=True)
+```
 
 ## 常见问题
 
@@ -228,3 +273,4 @@ MIT License
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM 应用框架
 - [DeepSeek](https://www.deepseek.com/) - 大语言模型
 - [DeepAgents](https://github.com/deepagents) - Agent 框架
+- [orz.ai](https://orz.ai/) - 热点数据 API 提供

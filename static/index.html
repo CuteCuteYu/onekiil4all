@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  onekiil4all - AI 助手聊天界面主页面
-  作者: onekiil4all
+  上古必斩必杀 - AI 助手聊天界面主页面
+  作者: CuteCuteYu
   描述: 一个支持多功能的AI对话应用，包含聊天、历史记录、任务列表、技能展示和热点趋势等功能
 -->
 <html lang="zh-CN">
@@ -11,7 +11,7 @@
   <!-- 视口设置，支持移动端响应式布局 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- 页面标题 -->
-  <title>onekiil4all</title>
+  <title>上古必斩必杀</title>
   
   <!-- 预连接Google Fonts以提高字体加载速度 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,42 +42,45 @@
         <div class="history-empty">no history</div>
       </div>
 
-      <!-- TODO 待办事项面板 -->
-      <div class="todo-panel">
-        <div class="panel-header">
-          <!-- 待办事项标题 -->
-          <span class="panel-title">TODO</span>
-          <!-- 刷新待办事项按钮 -->
-          <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
-        </div>
-        <!-- 待办事项内容容器 -->
-        <div class="todo-content" id="todo-content">
-          <div class="todo-empty">no active task</div>
-        </div>
-      </div>
-
-      <!-- 技能和工具面板 -->
-      <div class="tools-panel">
-        <div class="panel-header">
-          <span class="panel-title">CAPABILITIES</span>
-        </div>
-        <!-- 标签页切换按钮 (技能/工具) -->
-        <div class="tools-tabs">
-          <button class="tab-btn active" data-tab="skills">SKILLS</button>
-          <button class="tab-btn" data-tab="tools">TOOLS</button>
-        </div>
-        <!-- 技能/工具内容区域 -->
-        <div class="tools-content" id="tools-content">
-          <!-- 技能列表面板 -->
-          <div class="tab-panel active" id="tab-skills">
-            <div class="skills-list" id="skills-list">
-              <div class="list-loading">loading...</div>
-            </div>
+      <!-- 可滚动区域 -->
+      <div class="sidebar-left-scroll">
+        <!-- TODO 待办事项面板 -->
+        <div class="todo-panel">
+          <div class="panel-header">
+            <!-- 待办事项标题 -->
+            <span class="panel-title">TODO</span>
+            <!-- 刷新待办事项按钮 -->
+            <button class="btn-icon" id="btn-refresh-todo">REFRESH</button>
           </div>
-          <!-- 工具列表面板 -->
-          <div class="tab-panel" id="tab-tools">
-            <div class="tools-list" id="tools-list">
-              <div class="list-loading">loading...</div>
+          <!-- 待办事项内容容器 -->
+          <div class="todo-content" id="todo-content">
+            <div class="todo-empty">no active task</div>
+          </div>
+        </div>
+
+        <!-- 技能和工具面板 -->
+        <div class="tools-panel">
+          <div class="panel-header">
+            <span class="panel-title">CAPABILITIES</span>
+          </div>
+          <!-- 标签页切换按钮 (技能/工具) -->
+          <div class="tools-tabs">
+            <button class="tab-btn active" data-tab="skills">SKILLS</button>
+            <button class="tab-btn" data-tab="tools">TOOLS</button>
+          </div>
+          <!-- 技能/工具内容区域 -->
+          <div class="tools-content" id="tools-content">
+            <!-- 技能列表面板 -->
+            <div class="tab-panel active" id="tab-skills">
+              <div class="skills-list" id="skills-list">
+                <div class="list-loading">loading...</div>
+              </div>
+            </div>
+            <!-- 工具列表面板 -->
+            <div class="tab-panel" id="tab-tools">
+              <div class="tools-list" id="tools-list">
+                <div class="list-loading">loading...</div>
+              </div>
             </div>
           </div>
         </div>
@@ -89,7 +92,7 @@
       <!-- 页面头部 -->
       <header class="header">
         <!-- 应用标题 -->
-        <div class="header-title">onekiil4all</div>
+        <div class="header-title">上古必斩必杀</div>
         <!-- 头部右侧区域 -->
         <div class="header-right">
           <!-- 当前对话线程ID徽章 -->
@@ -103,7 +106,7 @@
       <div class="messages" id="messages">
         <!-- 空状态显示 -->
         <div class="empty-state" id="empty-state">
-          <div class="empty-state-title">onekiil4all</div>
+          <div class="empty-state-title">上古必斩必杀</div>
           <div class="empty-state-sub">send a message to begin</div>
         </div>
       </div>
@@ -147,11 +150,12 @@
           <!-- 刷新热点资讯按钮 -->
           <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
         </div>
-        <!-- 热点资讯标签页切换 (热搜/GitHub/科技新闻) -->
+        <!-- 热点资讯标签页切换 (热搜/GitHub/科技新闻/告警) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
           <button class="tab-btn" data-tab="github">GITHUB</button>
           <button class="tab-btn" data-tab="tech">TECH</button>
+          <button class="tab-btn" data-tab="alerts">ALERTS</button>
         </div>
         <!-- 热点资讯内容区域 -->
         <div class="intelligence-content" id="intelligence-content">
@@ -171,6 +175,25 @@
           <div class="tab-panel" id="tab-tech">
             <div class="trends-list" id="tech-list">
               <div class="list-loading">loading...</div>
+            </div>
+          </div>
+          <!-- 告警面板 -->
+          <div class="tab-panel" id="tab-alerts">
+            <div class="alert-add">
+              <input type="text" id="alert-input" placeholder="添加监控关键词...">
+              <button class="btn-add" id="btn-add-alert">+</button>
+            </div>
+            <div class="alerts-list" id="alerts-list">
+              <div class="alert-empty">no alerts</div>
+            </div>
+            <div class="alert-history">
+              <div class="alert-history-header">
+                <span>RECENT</span>
+                <button class="btn-small" id="btn-clear-alert-history">CLEAR</button>
+              </div>
+              <div class="alert-history-list" id="alert-history-list">
+                <div class="alert-empty-small">no history</div>
+              </div>
             </div>
           </div>
         </div>
