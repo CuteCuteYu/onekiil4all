@@ -39,11 +39,22 @@ onekiil4all/
 │   └── model_set.py          # DeepSeek 模型配置
 ├── static/                   # 前端静态资源
 │   ├── index.html            # 主页面
-│   ├── app.js                # 前端逻辑
 │   ├── style.css             # 样式文件
-│   ├── alert.html            # 告警详情页
-│   ├── alert.js              # 告警详情页逻辑
-│   └── alert.css             # 告警详情页样式
+│   ├── config.js             # 配置和常量
+│   ├── state.js              # 状态管理
+│   ├── dom.js                # DOM元素缓存
+│   ├── utils.js              # 辅助函数
+│   ├── chat.js               # 聊天功能
+│   ├── history.js            # 历史记录
+│   ├── todo.js              # 待办事项
+│   ├── skills.js            # 技能/工具
+│   ├── trends.js            # 热点资讯
+│   ├── alerts.js            # 告警功能
+│   ├── links.js             # 关联搜索
+│   ├── init.js              # 初始化和事件绑定
+│   ├── alert.html           # 告警详情页
+│   ├── alert.js             # 告警详情页逻辑
+│   └── alert.css            # 告警详情页样式
 ├── data/                     # 数据存储目录
 │   ├── alerts.json           # 告警规则存储
 │   └── alert_history.json    # 告警历史记录

@@ -39,10 +39,21 @@ onekiil4all/
 │   └── model_set.py          # DeepSeek model configuration
 ├── static/                   # Frontend static resources
 │   ├── index.html            # Main page
-│   ├── app.js                # Frontend logic
 │   ├── style.css             # Stylesheet
-│   ├── alert.html            # Alert detail page
-│   ├── alert.js              # Alert detail page logic
+│   ├── config.js             # Configuration and constants
+│   ├── state.js              # State management
+│   ├── dom.js                # DOM element cache
+│   ├── utils.js              # Utility functions
+│   ├── chat.js               # Chat functionality
+│   ├── history.js            # History records
+│   ├── todo.js              # Todo items
+│   ├── skills.js            # Skills/tools
+│   ├── trends.js            # Trending news
+│   ├── alerts.js            # Alert functionality
+│   ├── links.js             # Association search
+│   ├── init.js              # Initialization and event binding
+│   ├── alert.html           # Alert detail page
+│   ├── alert.js             # Alert detail page logic
 │   └── alert.css             # Alert detail page styles
 ├── data/                     # Data storage directory
 │   ├── alerts.json           # Alert rules storage
