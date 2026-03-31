@@ -102,8 +102,10 @@ onekiil4all/
 │   ├── conversation.py       # Session management
 │   ├── task_analyzer.py     # Task analysis
 │   ├── todo_manager.py      # TODO management
-│   ├── trends.py            # Trending data (multi-threaded)
-│   └── alert_manager.py     # Alert management
+│   └── intelligence/         # Intelligence module
+│       ├── trends.py        # Trending data
+│       ├── alert_manager.py # Alert management
+│       └── rss_manager.py   # RSS subscription
 ├── agent_set/                # Agent components
 │   ├── agent_set.py          # Agent creation
 │   ├── tools_set.py          # Tool definitions
@@ -111,6 +113,25 @@ onekiil4all/
 ├── model_set/                # Model configuration
 │   └── model_set.py          # DeepSeek model setup
 ├── static/                   # Frontend (HTML/CSS/JS)
+│   ├── index.html           # Main page
+│   ├── style.css            # Styles
+│   ├── config.js            # Config and constants
+│   ├── state.js             # State management
+│   ├── dom.js               # DOM cache
+│   ├── utils.js             # Utilities
+│   ├── chat.js              # Chat functionality
+│   ├── history.js           # History
+│   ├── todo.js              # Todo items
+│   ├── skills.js            # Skills/tools
+│   ├── init.js              # Init and events
+│   ├── alert.html           # Alert detail page
+│   ├── alert.js             # Alert detail logic
+│   ├── alert.css            # Alert detail styles
+│   └── intelligence/        # Intelligence module
+│       ├── trends.js       # Trending data
+│       ├── alerts.js       # Alert functionality
+│       ├── links.js        # Association search
+│       └── rss.js          # RSS subscription
 ├── data/                     # Data storage (alerts.json, alert_history.json)
 ├── prompt/                   # Agent prompts
 ├── chat_history/             # Conversation history

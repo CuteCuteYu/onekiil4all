@@ -48,21 +48,34 @@ onekiil4all/
 │   ├── history.js            # History records
 │   ├── todo.js              # Todo items
 │   ├── skills.js            # Skills/tools
-│   ├── trends.js            # Trending news
-│   ├── alerts.js            # Alert functionality
-│   ├── links.js             # Association search
 │   ├── init.js              # Initialization and event binding
 │   ├── alert.html           # Alert detail page
 │   ├── alert.js             # Alert detail page logic
-│   └── alert.css             # Alert detail page styles
+│   ├── alert.css             # Alert detail page styles
+│   └── intelligence/        # Intelligence module
+│       ├── trends.js        # Trending data
+│       ├── alerts.js        # Alert functionality
+│       ├── links.js         # Association search
+│       └── rss.js           # RSS subscription
+├── web/                      # FastAPI Web server
+│   ├── web_server.py         # Main entry point
+│   ├── chat_handler.py       # Chat processing
+│   ├── conversation.py      # Session management
+│   ├── task_analyzer.py     # Task analysis
+│   ├── todo_manager.py      # TODO management
+│   └── intelligence/         # Intelligence module
+│       ├── trends.py         # Trending data fetching
+│       ├── alert_manager.py  # Alert management
+│       └── rss_manager.py    # RSS subscription management
 ├── data/                     # Data storage directory
 │   ├── alerts.json           # Alert rules storage
-│   └── alert_history.json    # Alert history records
+│   ├── alert_history.json    # Alert history records
+│   └── rss_sources.json      # RSS sources storage
 ├── prompt/                   # Prompt configuration
 │   └── AGENTS.md             # Agent system prompts
 ├── chat_history/             # Conversation history storage
 ├── pyproject.toml            # Project configuration
-└── README.md                 # Project documentation
+└── README.en.md              # Project documentation
 ```
 
 ## Features

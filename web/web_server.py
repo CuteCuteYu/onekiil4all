@@ -32,7 +32,8 @@ from pydantic import BaseModel
 # ═══════════════════════════════════════════════════════════════
 
 from web.chat_handler import chat_handler
-from web.rss_manager import rss_manager
+from web.intelligence.rss_manager import rss_manager
+from web.intelligence.alert_manager import alert_manager
 from dataclasses import asdict
 from web.conversation import (
     new_chat,
@@ -138,7 +139,11 @@ async def lifespan(app: FastAPI):
     async def alert_checker():
         """后台告警检查任务，每秒执行一次"""
         import asyncio
-        from web.trends import get_trends, _executor
+        from web.intelligence.trends import (
+            get_trends,
+            get_keyword_associations,
+            _executor,
+        )
 
         while True:
             try:
@@ -243,7 +248,7 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
 
-    from web.trends import _executor
+    from web.intelligence.trends import _executor
 
     _executor.shutdown(wait=False)
 
@@ -676,7 +681,7 @@ async def api_get_chat_history(thread_id: str):
 @app.get("/api/trends")
 async def api_get_trends():
     """获取热门搜索和情报信息"""
-    from web.trends import get_trends
+    from web.intelligence.trends import get_trends, get_keyword_associations
 
     return get_trends()
 
@@ -684,7 +689,7 @@ async def api_get_trends():
 @app.get("/api/trends/associations")
 async def api_get_keyword_associations(keyword: str):
     """获取指定关键词的关联分析"""
-    from web.trends import get_keyword_associations
+    from web.intelligence.trends import get_keyword_associations
 
     if not keyword or len(keyword.strip()) < 2:
         return {"error": "关键词至少2个字符", "keyword": keyword, "associations": []}
@@ -695,7 +700,7 @@ async def api_get_keyword_associations(keyword: str):
 @app.get("/api/alerts")
 async def api_get_alerts():
     """获取所有告警规则"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     alerts = alert_manager.get_all_alerts()
     return {"alerts": [a.to_dict() for a in alerts]}
@@ -704,7 +709,7 @@ async def api_get_alerts():
 @app.post("/api/alerts")
 async def api_create_alert(request: Request):
     """创建新的告警规则"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     try:
         body = await request.json()
@@ -723,7 +728,7 @@ async def api_create_alert(request: Request):
 @app.delete("/api/alerts/{alert_id}")
 async def api_delete_alert(alert_id: str):
     """删除告警规则"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     deleted = alert_manager.remove_alert(alert_id)
     if deleted:
@@ -734,7 +739,7 @@ async def api_delete_alert(alert_id: str):
 @app.post("/api/alerts/{alert_id}/toggle")
 async def api_toggle_alert(alert_id: str):
     """切换告警启用/禁用状态"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     success = alert_manager.toggle_alert(alert_id)
     if success:
@@ -747,7 +752,7 @@ async def api_toggle_alert(alert_id: str):
 @app.get("/api/alerts/history")
 async def api_get_alert_history(limit: int = 50):
     """获取告警历史记录"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     history = alert_manager.get_history(limit)
     return {"history": [h.to_dict() for h in history]}
@@ -756,7 +761,7 @@ async def api_get_alert_history(limit: int = 50):
 @app.delete("/api/alerts/history/all")
 async def api_clear_alert_history_all():
     """清空告警历史"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     alert_manager.clear_history()
     return {"cleared": True}
@@ -765,7 +770,7 @@ async def api_clear_alert_history_all():
 @app.get("/api/alerts/timeline/{keyword}")
 async def api_get_alert_timeline(keyword: str):
     """获取关键词的事件时间线"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     timeline = alert_manager.get_timeline(keyword)
     return {"keyword": keyword, "timeline": [h.to_dict() for h in timeline]}
@@ -774,7 +779,7 @@ async def api_get_alert_timeline(keyword: str):
 @app.delete("/api/alerts/history")
 async def api_clear_alert_history():
     """清空告警历史"""
-    from web.alert_manager import alert_manager
+    from web.intelligence.alert_manager import alert_manager
 
     alert_manager.clear_history()
     return {"cleared": True}

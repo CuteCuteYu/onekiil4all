@@ -48,16 +48,29 @@ onekiil4all/
 │   ├── history.js            # 历史记录
 │   ├── todo.js              # 待办事项
 │   ├── skills.js            # 技能/工具
-│   ├── trends.js            # 热点资讯
-│   ├── alerts.js            # 告警功能
-│   ├── links.js             # 关联搜索
 │   ├── init.js              # 初始化和事件绑定
 │   ├── alert.html           # 告警详情页
 │   ├── alert.js             # 告警详情页逻辑
-│   └── alert.css            # 告警详情页样式
+│   ├── alert.css            # 告警详情页样式
+│   └── intelligence/        # 情报模块
+│       ├── trends.js        # 热点资讯
+│       ├── alerts.js        # 告警功能
+│       ├── links.js         # 关联搜索
+│       └── rss.js           # RSS订阅
+├── web/                      # FastAPI Web服务器
+│   ├── web_server.py         # 主入口
+│   ├── chat_handler.py       # 聊天处理
+│   ├── conversation.py      # 会话管理
+│   ├── task_analyzer.py     # 任务分析
+│   ├── todo_manager.py      # TODO管理
+│   └── intelligence/         # 情报模块
+│       ├── trends.py         # 热点数据获取
+│       ├── alert_manager.py  # 告警管理
+│       └── rss_manager.py    # RSS订阅管理
 ├── data/                     # 数据存储目录
 │   ├── alerts.json           # 告警规则存储
-│   └── alert_history.json    # 告警历史记录
+│   ├── alert_history.json    # 告警历史记录
+│   └── rss_sources.json      # RSS订阅源存储
 ├── prompt/                   # 提示词配置
 │   └── AGENTS.md             # Agent 系统提示
 ├── chat_history/             # 对话历史存储
