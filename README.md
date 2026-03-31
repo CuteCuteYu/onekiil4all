@@ -135,7 +135,14 @@ onekiil4all/
 - **添加订阅**：在 RSS 标签页输入 RSS/Atom 地址添加
 - **重复检测**：相同 URL（忽略大小写）无法重复添加，会提示"URL 已存在"
 
-### 7. 前端界面特性
+### 8. 安全情报
+
+- **IP归属地查询**：查询IP归属地、运营商（跳转站长工具）
+- **WHOIS查询**：查询域名注册信息（跳转站长工具）
+- **CVE漏洞查询**：查询CVE漏洞详情（阿里云漏洞库）
+- **网站安全检测**：检测网站安全状况（跳转站长工具）
+
+### 9. 前端界面特性
 
 - **实时进度显示**：工具调用、任务状态实时更新
 - **响应式设计**：适配不同屏幕尺寸
@@ -350,3 +357,5 @@ MIT License
 - [DeepSeek](https://www.deepseek.com/) - 大语言模型
 - [DeepAgents](https://github.com/deepagents) - Agent 框架
 - [orz.ai](https://orz.ai/) - 热点数据 API 提供
+- [站长工具](https://www.chinaz.com/) - IP查询、WHOIS、网站安全检测
+- [阿里云漏洞库](https://avd.aliyun.com/) - CVE漏洞查询

@@ -151,3 +151,40 @@ if ($rssInput) {
     }
   });
 }
+
+// SECURITY按钮事件
+if ($btnQueryIp) {
+  $btnQueryIp.addEventListener('click', queryIP);
+}
+if ($securityIpInput) {
+  $securityIpInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') queryIP();
+  });
+}
+
+if ($btnQueryWhois) {
+  $btnQueryWhois.addEventListener('click', queryWhois);
+}
+if ($securityDomainInput) {
+  $securityDomainInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') queryWhois();
+  });
+}
+
+if ($btnQueryCve) {
+  $btnQueryCve.addEventListener('click', queryCVE);
+}
+if ($securityCveInput) {
+  $securityCveInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') queryCVE();
+  });
+}
+
+if ($btnQuerySite) {
+  $btnQuerySite.addEventListener('click', querySite);
+}
+if ($securitySiteInput) {
+  $securitySiteInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') querySite();
+  });
+}

@@ -135,7 +135,14 @@ The system includes multiple built-in tools:
 - **Add Subscription**: Enter RSS/Atom URL in RSS tab to add
 - **Duplicate Detection**: Same URL (case-insensitive) cannot be added, shows "URL already exists"
 
-### 7. Frontend Features
+### 8. Security Intelligence
+
+- **IP Lookup**: Query IP geolocation and ISP (links to Chinaz)
+- **WHOIS Query**: Query domain registration info (links to Chinaz)
+- **CVE Lookup**: Query CVE vulnerability details (Aliyun AVD)
+- **Site Security**: Check website security status (links to Chinaz)
+
+### 9. Frontend Features
 
 - **Real-time Progress**: Tool calling and task status update in real-time
 - **Responsive Design**: Adapts to different screen sizes
@@ -350,3 +357,5 @@ MIT License
 - [DeepSeek](https://www.deepseek.com/) - Large language model
 - [DeepAgents](https://github.com/deepagents) - Agent framework
 - [orz.ai](https://orz.ai/) - Trending data API provider
+- [Chinaz](https://www.chinaz.com/) - IP lookup, WHOIS, website security scanning
+- [Aliyun AVD](https://avd.aliyun.com/) - CVE vulnerability database

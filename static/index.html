@@ -150,12 +150,13 @@
           <!-- 刷新热点资讯按钮 -->
           <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
         </div>
-        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS) -->
+        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/安全) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
           <button class="tab-btn" data-tab="alerts">ALERTS</button>
           <button class="tab-btn" data-tab="links">LINKS</button>
           <button class="tab-btn" data-tab="rss">RSS</button>
+          <button class="tab-btn" data-tab="security">SECURITY</button>
         </div>
         <!-- 热点资讯内容区域 -->
         <div class="intelligence-content" id="intelligence-content">
@@ -207,6 +208,39 @@
               <div class="list-empty">添加订阅源后显示文章</div>
             </div>
           </div>
+          <!-- 安全情报面板 -->
+          <div class="tab-panel" id="tab-security">
+            <div class="security-tools">
+              <div class="security-tool-item">
+                <div class="tool-name">IP归属地查询</div>
+                <div class="tool-desc">查询IP地址的归属地、运营商等信息</div>
+                <input type="text" id="security-ip-input" placeholder="输入IP地址...">
+                <button class="btn-query" id="btn-query-ip">查询</button>
+                <a href="https://ip.chinaz.com/" target="_blank" class="btn-link">站长工具</a>
+              </div>
+              <div class="security-tool-item">
+                <div class="tool-name">WHOIS查询</div>
+                <div class="tool-desc">查询域名的注册信息、过期时间等</div>
+                <input type="text" id="security-domain-input" placeholder="输入域名...">
+                <button class="btn-query" id="btn-query-whois">查询</button>
+                <a href="https://whois.chinaz.com/" target="_blank" class="btn-link">站长工具</a>
+              </div>
+              <div class="security-tool-item">
+                <div class="tool-name">CVE漏洞查询</div>
+                <div class="tool-desc">查询CVE漏洞编号获取详细信息</div>
+                <input type="text" id="security-cve-input" placeholder="输入CVE编号，如CVE-2024-0001">
+                <button class="btn-query" id="btn-query-cve">查询</button>
+                <a href="https://avd.aliyun.com/" target="_blank" class="btn-link">阿里云漏洞库</a>
+              </div>
+              <div class="security-tool-item">
+                <div class="tool-name">网站安全检测</div>
+                <div class="tool-desc">检测网站安全状况、漏洞等</div>
+                <input type="text" id="security-site-input" placeholder="输入网站地址...">
+                <button class="btn-query" id="btn-query-site">检测</button>
+                <a href="https://tool.chinaz.com/webscan" target="_blank" class="btn-link">站长工具</a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -231,6 +265,7 @@
   <script src="/static/intelligence/alerts.js"></script>
   <script src="/static/intelligence/links.js"></script>
   <script src="/static/intelligence/rss.js"></script>
+  <script src="/static/intelligence/security.js"></script>
   <script src="/static/init.js"></script>
 </body>
 </html>

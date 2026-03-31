@@ -131,7 +131,8 @@ onekiil4all/
 │       ├── trends.js       # Trending data
 │       ├── alerts.js       # Alert functionality
 │       ├── links.js        # Association search
-│       └── rss.js          # RSS subscription
+│       ├── rss.js          # RSS subscription
+│       └── security.js     # Security intelligence
 ├── data/                     # Data storage (alerts.json, alert_history.json)
 ├── prompt/                   # Agent prompts
 ├── chat_history/             # Conversation history
