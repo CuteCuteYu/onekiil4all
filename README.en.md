@@ -56,7 +56,8 @@ onekiil4all/
 │       ├── trends.js        # Trending data
 │       ├── alerts.js        # Alert functionality
 │       ├── links.js         # Association search
-│       └── rss.js           # RSS subscription
+│       ├── rss.js           # RSS subscription
+│       └── security.js      # Security intelligence
 ├── web/                      # FastAPI Web server
 │   ├── web_server.py         # Main entry point
 │   ├── chat_handler.py       # Chat processing
