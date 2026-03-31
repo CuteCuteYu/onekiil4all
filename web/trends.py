@@ -157,3 +157,87 @@ def get_trends(check_alerts: bool = False) -> dict:
         if check_alerts:
             result["new_alerts"] = []
         return result
+
+
+def get_keyword_associations(keyword: str) -> dict:
+    """
+    获取指定关键词的关联分析
+
+    参数:
+        keyword: 用户输入的关键词
+
+    返回:
+        包含关联词条和得分的字典
+    """
+    if not keyword or len(keyword.strip()) < 2:
+        return {"keyword": keyword, "associations": []}
+
+    keyword = keyword.strip().lower()
+    keyword_lower = keyword
+
+    trends = get_trends()
+
+    titles = []
+
+    for item in trends.get("hot_search", []):
+        if item.get("word"):
+            titles.append(item["word"])
+
+    for item in trends.get("github", []):
+        name = item.get("name", "")
+        desc = item.get("description", "")
+        if name:
+            titles.append(name)
+        if desc:
+            titles.append(desc)
+
+    for item in trends.get("tech_news", []):
+        if item.get("title"):
+            titles.append(item["title"])
+
+    co_occur = {}
+
+    for title in titles:
+        title_lower = title.lower()
+
+        if keyword_lower not in title_lower:
+            continue
+
+        words = extract_keywords(title)
+
+        for word in words:
+            if word != keyword and len(word) >= 2:
+                if word not in co_occur:
+                    co_occur[word] = 0
+                co_occur[word] += 1
+
+    associations = []
+    for word, count in co_occur.items():
+        score = min(count / 5, 1.0)
+        associations.append({"keyword": word, "score": round(score, 2)})
+
+    associations.sort(key=lambda x: x["score"], reverse=True)
+
+    return {
+        "keyword": keyword,
+        "associations": associations[:15],
+    }
+
+
+def extract_keywords(text: str) -> list:
+    """从文本中提取关键词"""
+    import re
+
+    chinese = re.findall(r"[\u4e00-\u9fff]+", text)
+    english = re.findall(r"[a-zA-Z]{3,}", text)
+
+    keywords = []
+
+    for word in chinese:
+        if len(word) >= 2:
+            for i in range(len(word) - 1):
+                keywords.append(word[i : i + 2])
+
+    keywords.extend([w.lower() for w in english])
+
+    return keywords

@@ -134,7 +134,7 @@ async def lifespan(app: FastAPI):
     async def alert_checker():
         """后台告警检查任务，每秒执行一次"""
         import asyncio
-        from web.trends import get_trends
+        from web.trends import get_trends, _executor
 
         while True:
             try:
@@ -157,9 +157,16 @@ async def lifespan(app: FastAPI):
 
     alert_checker_task.cancel()
     try:
-        await alert_checker_task
+        await asyncio.wait_for(alert_checker_task, timeout=2.0)
+    except asyncio.TimeoutError:
+        alert_checker_task.cancel()
     except asyncio.CancelledError:
         pass
+
+    from web.trends import _executor
+
+    _executor.shutdown(wait=False)
+
     print("Web server stopped")
 
 
@@ -591,6 +598,17 @@ async def api_get_trends():
     from web.trends import get_trends
 
     return get_trends()
+
+
+@app.get("/api/trends/associations")
+async def api_get_keyword_associations(keyword: str):
+    """获取指定关键词的关联分析"""
+    from web.trends import get_keyword_associations
+
+    if not keyword or len(keyword.strip()) < 2:
+        return {"error": "关键词至少2个字符", "keyword": keyword, "associations": []}
+
+    return get_keyword_associations(keyword.strip())
 
 
 @app.get("/api/alerts")

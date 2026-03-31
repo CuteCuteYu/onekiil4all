@@ -88,6 +88,7 @@ The system includes multiple built-in tools:
   - GITHUB: GitHub Trending projects
   - TECH: Tech news (少数派, 36Kr, 掘金, V2EX, Hacker News)
   - ALERTS: Keyword monitoring and alerts
+  - LINKS: Keyword association analysis
 - All items are clickable and link to original pages
 
 ### 5. Keyword Monitoring & Alerts
@@ -98,7 +99,14 @@ The system includes multiple built-in tools:
 - **Event Timeline**: Click keyword to view complete alert history
 - **Persistent Storage**: Alert rules and history stored in `data/` directory
 
-### 6. Frontend Features
+### 6. Keyword Association Analysis
+
+- **Association Search**: Enter keywords in LINKS tab to analyze associations
+- **Smart Analysis**: Analyzes related keywords from current trending data
+- **One-click Alert**: Click any association keyword to add to ALERTS
+- **Relevance Score**: Shows relevance percentage for each associated keyword
+
+### 7. Frontend Features
 
 - **Real-time Progress**: Tool calling and task status update in real-time
 - **Responsive Design**: Adapts to different screen sizes
@@ -228,6 +236,7 @@ The service provides the following REST APIs:
 
 - **Trending Data Fetching**: Uses `ThreadPoolExecutor` to fetch data from multiple platforms concurrently, reducing time from ~165 seconds (sequential) to ~2 seconds
 - **Background Alert Checking**: Uses `asyncio.to_thread()` to avoid blocking main event loop, ensuring smooth UI responsiveness
+- **Graceful Shutdown**: Properly closes background tasks and thread pool on service stop, preventing Ctrl+C hang
 
 ### Technical Details
 
@@ -240,6 +249,13 @@ futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
 ```python
 # web_server.py - async execution
 trends = await asyncio.to_thread(get_trends, check_alerts=True)
+```
+
+```python
+# web_server.py - graceful shutdown
+alert_checker_task.cancel()
+await asyncio.wait_for(alert_checker_task, timeout=2.0)
+_executor.shutdown(wait=False)
 ```
 
 ## FAQ

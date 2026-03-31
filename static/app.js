@@ -1431,6 +1431,79 @@ $alertInput.addEventListener('keydown', (e) => {
 });
 $btnClearAlertHistory.addEventListener('click', clearAlertHistory);
 
+// LINKS 关联搜索
+const $btnSearchLinks = document.getElementById('btn-search-links');
+const $linkKeywordInput = document.getElementById('link-keyword-input');
+const $linkResults = document.getElementById('link-results');
+
+if ($btnSearchLinks) {
+  $btnSearchLinks.addEventListener('click', searchLinks);
+}
+if ($linkKeywordInput) {
+  $linkKeywordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchLinks();
+  });
+}
+
+async function searchLinks() {
+  const keyword = $linkKeywordInput.value.trim();
+
+  if (!keyword || keyword.length < 2) {
+    $linkResults.innerHTML = '<div class="list-empty">请输入至少2个字符的关键词</div>';
+    return;
+  }
+
+  $linkResults.innerHTML = '<div class="list-loading">loading...</div>';
+
+  try {
+    const res = await fetch(
+      `${API}/api/trends/associations?keyword=${encodeURIComponent(keyword)}`
+    );
+    const data = await res.json();
+
+    if (data.error) {
+      $linkResults.innerHTML = `<div class="list-empty">${data.error}</div>`;
+      return;
+    }
+
+    renderLinkResults(data);
+  } catch (e) {
+    console.error('Failed to search links:', e);
+    $linkResults.innerHTML = '<div class="list-empty">load failed</div>';
+  }
+}
+
+function renderLinkResults(data) {
+  if (!data.associations || data.associations.length === 0) {
+    $linkResults.innerHTML = '<div class="list-empty">no related keywords</div>';
+    return;
+  }
+
+  $linkResults.innerHTML = data.associations.map(item => `
+    <div class="link-result-item" data-keyword="${escapeHtml(item.keyword)}">
+      <span class="kw-name">${escapeHtml(item.keyword)}</span>
+      <span class="kw-score">${Math.round(item.score * 100)}%</span>
+    </div>
+  `).join('');
+
+  $linkResults.querySelectorAll('.link-result-item').forEach(el => {
+    el.addEventListener('click', async () => {
+      const keyword = el.dataset.keyword;
+      await addAlert(keyword);
+      switchIntelligenceTab('alerts');
+    });
+  });
+}
+
+function switchIntelligenceTab(tabName) {
+  document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.intelligence-content .tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === `tab-${tabName}`);
+  });
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // 初始化

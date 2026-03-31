@@ -88,6 +88,7 @@ onekiil4all/
   - GITHUB：GitHub Trending 项目
   - TECH：科技新闻（少数派、36氪、掘金、V2EX、Hacker News）
   - ALERTS：关键词监控和告警
+  - LINKS：关键词关联分析
 - 所有条目可点击跳转原始页面
 
 ### 5. 关键词监控与告警
@@ -98,7 +99,14 @@ onekiil4all/
 - **事件时间线**：点击关键词查看完整的告警事件历史
 - **持久化存储**：告警规则和历史记录保存在 `data/` 目录
 
-### 6. 前端界面特性
+### 6. 关键词关联分析
+
+- **关联搜索**：在 LINKS 标签页输入关键词进行关联分析
+- **智能关联**：分析当前热点数据中与输入关键词相关的其他词汇
+- **一键告警**：点击任意关联词条自动添加到 ALERTS 监控
+- **关联度显示**：显示关联词条的相关性百分比
+
+### 7. 前端界面特性
 
 - **实时进度显示**：工具调用、任务状态实时更新
 - **响应式设计**：适配不同屏幕尺寸
@@ -228,6 +236,7 @@ model = ChatOpenAI(
 
 - **热点数据获取**：使用 `ThreadPoolExecutor` 并发获取多个平台数据，原来串行获取需要约 165 秒，优化后仅需约 2 秒
 - **后台告警检查**：使用 `asyncio.to_thread()` 避免阻塞主事件循环，确保 UI 响应流畅
+- **优雅关闭**：服务停止时正确关闭后台任务和线程池，避免 Ctrl+C 卡住
 
 ### 技术细节
 
@@ -240,6 +249,13 @@ futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
 ```python
 # web_server.py - 异步执行
 trends = await asyncio.to_thread(get_trends, check_alerts=True)
+```
+
+```python
+# web_server.py - 优雅关闭
+alert_checker_task.cancel()
+await asyncio.wait_for(alert_checker_task, timeout=2.0)
+_executor.shutdown(wait=False)
 ```
 
 ## 常见问题
