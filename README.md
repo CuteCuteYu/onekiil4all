@@ -94,12 +94,11 @@ onekiil4all/
 
 ### 4. 情报分析面板
 
-- **INTELLIGENCE 面板**：展示热门搜索和科技资讯（数据来源：[orz.ai](https://orz.ai/)）
+- **INTELLIGENCE 面板**：展示热门搜索（数据来源：[orz.ai](https://orz.ai/)）
   - HOT：聚合多个平台的热门热搜（百度、微博、知乎、抖音、B站等）
-  - GITHUB：GitHub Trending 项目
-  - TECH：科技新闻（少数派、36氪、掘金、V2EX、Hacker News）
   - ALERTS：关键词监控和告警
   - LINKS：关键词关联分析
+  - RSS：自定义 RSS 订阅源
 - 所有条目可点击跳转原始页面
 
 ### 5. 关键词监控与告警
@@ -109,6 +108,7 @@ onekiil4all/
 - **实时推送**：通过 SSE 实时推送新告警到前端
 - **事件时间线**：点击关键词查看完整的告警事件历史
 - **持久化存储**：告警规则和历史记录保存在 `data/` 目录
+- **重复检测**：相同关键词（忽略大小写）无法重复添加，会提示"已存在"
 
 ### 6. 关键词关联分析
 
@@ -116,6 +116,11 @@ onekiil4all/
 - **智能关联**：分析当前热点数据中与输入关键词相关的其他词汇
 - **一键告警**：点击任意关联词条自动添加到 ALERTS 监控
 - **关联度显示**：显示关联词条的相关性百分比
+
+### 7. RSS 订阅
+
+- **添加订阅**：在 RSS 标签页输入 RSS/Atom 地址添加
+- **重复检测**：相同 URL（忽略大小写）无法重复添加，会提示"URL 已存在"
 
 ### 7. 前端界面特性
 
@@ -240,6 +245,37 @@ model = ChatOpenAI(
 | `/api/alerts/history/all` | DELETE | 清空告警历史 |
 | `/api/alerts/timeline/{keyword}` | GET | 获取关键词时间线 |
 | `/api/alerts/stream` | GET | SSE 告警流（实时推送） |
+| `/api/rss` | GET/POST | 获取/添加 RSS 订阅源 |
+| `/api/rss/{id}` | DELETE | 删除 RSS 源 |
+| `/api/rss/{id}/toggle` | POST | 启用/禁用 RSS 源 |
+| `/api/rss/articles` | GET | 获取所有 RSS 源最新文章 |
+| `/api/rss/stream` | GET | SSE RSS 文章流（实时推送） |
+
+## RSS 订阅功能
+
+### 功能说明
+
+- **添加订阅源**：在 INTELLIGENCE 面板的 RSS 标签页，输入 RSS/Atom 订阅地址添加
+- **定时抓取**：后台线程每 60 秒自动抓取一次（每 1 秒检查间隔）
+- **实时推送**：新文章通过 SSE 实时推送到前端
+- **文章存储**：每个源保留最近 10 条文章
+
+### 使用示例
+
+添加 RSS 订阅：
+```bash
+curl -X POST http://localhost:8000/api/rss \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.ruanyifeng.com/blog/atom.xml"}'
+```
+
+### 优雅关闭
+
+**重要**：退出服务前请先关闭浏览器标签页，断开 SSE 连接后再按 Ctrl+C。
+
+退出步骤：
+1. 关闭浏览器标签页（或刷新页面断开 SSE 连接）
+2. 按 Ctrl+C 退出服务
 
 ## 性能优化
 

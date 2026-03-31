@@ -16,6 +16,7 @@ import uuid
 import sys
 import io
 from contextlib import asynccontextmanager, contextmanager
+from datetime import datetime
 
 # ═══════════════════════════════════════════════════════════════
 # 导入FastAPI和相关依赖
@@ -31,6 +32,8 @@ from pydantic import BaseModel
 # ═══════════════════════════════════════════════════════════════
 
 from web.chat_handler import chat_handler
+from web.rss_manager import rss_manager
+from dataclasses import asdict
 from web.conversation import (
     new_chat,
     create_todo_for_request,
@@ -130,6 +133,7 @@ async def lifespan(app: FastAPI):
     print("Web server started")
 
     alert_queue: asyncio.Queue = app.state.alert_queue
+    rss_queue: asyncio.Queue = app.state.rss_queue
 
     async def alert_checker():
         """后台告警检查任务，每秒执行一次"""
@@ -151,15 +155,91 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"Alert check error: {e}")
 
+    async def rss_checker():
+        """后台RSS抓取任务，每秒执行一次"""
+        while True:
+            try:
+                await asyncio.sleep(1)
+
+                source_dicts = await asyncio.to_thread(
+                    lambda: [
+                        {
+                            "id": s.id,
+                            "url": s.url,
+                            "name": s.name,
+                            "enabled": s.enabled,
+                            "fetch_interval": s.fetch_interval,
+                            "last_fetch": s.last_fetch,
+                            "articles": s.articles.copy(),
+                        }
+                        for s in rss_manager.get_all_sources()
+                    ]
+                )
+
+                now = datetime.now()
+                for source in source_dicts:
+                    if not source["enabled"]:
+                        continue
+
+                    last_time = None
+                    if source["last_fetch"]:
+                        try:
+                            last_time = datetime.fromisoformat(source["last_fetch"])
+                        except Exception:
+                            pass
+
+                    if (
+                        last_time
+                        and (now - last_time).total_seconds() < source["fetch_interval"]
+                    ):
+                        continue
+
+                    articles = await asyncio.to_thread(
+                        rss_manager._fetch_rss_by_url, source["url"]
+                    )
+
+                    if articles:
+                        await asyncio.to_thread(
+                            rss_manager.update_source, source["id"], articles
+                        )
+
+                        for article in articles[:3]:
+                            await rss_queue.put(
+                                {
+                                    "source_id": source["id"],
+                                    "source_name": source["name"],
+                                    "url": source["url"],
+                                    "title": article.get("title", ""),
+                                    "link": article.get("link", ""),
+                                    "pubDate": article.get("pubDate", ""),
+                                    "description": article.get("description", ""),
+                                }
+                            )
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"RSS check error: {e}")
+
     alert_checker_task = asyncio.create_task(alert_checker())
+    rss_checker_task = asyncio.create_task(rss_checker())
 
     yield
 
     alert_checker_task.cancel()
+    rss_checker_task.cancel()
+
     try:
         await asyncio.wait_for(alert_checker_task, timeout=2.0)
     except asyncio.TimeoutError:
         alert_checker_task.cancel()
+    except asyncio.CancelledError:
+        pass
+
+    try:
+        await asyncio.wait_for(rss_checker_task, timeout=2.0)
+    except asyncio.TimeoutError:
+        rss_checker_task.cancel()
     except asyncio.CancelledError:
         pass
 
@@ -179,6 +259,7 @@ app = FastAPI(
 )
 
 app.state.alert_queue = asyncio.Queue()
+app.state.rss_queue = asyncio.Queue()
 
 # ═══════════════════════════════════════════════════════════════
 # CORS中间件配置
@@ -716,11 +797,94 @@ async def api_alerts_stream(request: Request):
                 yield f"data: {json.dumps({'type': 'ping'})}\n\n"
             except GeneratorExit:
                 break
+            except asyncio.CancelledError:
+                break
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.get("/api/rss")
+async def api_get_rss():
+    """获取所有RSS订阅源"""
+    sources = rss_manager.get_all_sources()
+    return {"sources": [asdict(s) for s in sources]}
+
+
+@app.post("/api/rss")
+async def api_create_rss(request: Request):
+    """创建新的RSS订阅源"""
+    try:
+        body = await request.json()
+        url = body.get("url", "").strip()
+        if not url:
+            raise HTTPException(status_code=400, detail="URL不能为空")
+
+        name = body.get("name", "").strip()
+        source = rss_manager.add_source(url, name)
+        return {"source": asdict(source)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建失败: {e}")
+
+
+@app.delete("/api/rss/{source_id}")
+async def api_delete_rss(source_id: str):
+    """删除RSS订阅源"""
+    if rss_manager.remove_source(source_id):
+        return {"deleted": True}
+    raise HTTPException(status_code=404, detail="RSS源不存在")
+
+
+@app.post("/api/rss/{source_id}/toggle")
+async def api_toggle_rss(source_id: str):
+    """切换RSS源的启用/禁用状态"""
+    source = rss_manager.toggle_source(source_id)
+    if source:
+        return {"source": asdict(source)}
+    raise HTTPException(status_code=404, detail="RSS源不存在")
+
+
+@app.get("/api/rss/articles")
+async def api_get_rss_articles():
+    """获取所有RSS源的最新文章"""
+    sources = rss_manager.get_all_sources()
+    articles = []
+    for s in sources:
+        for a in s.articles:
+            articles.append({"source": s.name, **a})
+    return {"articles": articles[:50]}
+
+
+@app.get("/api/rss/stream")
+async def api_rss_stream(request: Request):
+    """RSS文章事件流 - SSE"""
+    rss_queue = request.app.state.rss_queue
+
+    async def event_generator():
+        while True:
+            try:
+                article = await asyncio.wait_for(rss_queue.get(), timeout=30)
+                yield f"data: {json.dumps({'type': 'rss', 'article': article})}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            except GeneratorExit:
+                break
+            except asyncio.CancelledError:
+                break
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )
 
 

@@ -150,31 +150,18 @@
           <!-- 刷新热点资讯按钮 -->
           <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
         </div>
-        <!-- 热点资讯标签页切换 (热搜/GitHub/科技新闻/告警/关联) -->
+        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
-          <button class="tab-btn" data-tab="github">GITHUB</button>
-          <button class="tab-btn" data-tab="tech">TECH</button>
           <button class="tab-btn" data-tab="alerts">ALERTS</button>
           <button class="tab-btn" data-tab="links">LINKS</button>
+          <button class="tab-btn" data-tab="rss">RSS</button>
         </div>
         <!-- 热点资讯内容区域 -->
         <div class="intelligence-content" id="intelligence-content">
           <!-- 热搜榜单面板 -->
           <div class="tab-panel active" id="tab-hotsearch">
             <div class="trends-list" id="hotsearch-list">
-              <div class="list-loading">loading...</div>
-            </div>
-          </div>
-          <!-- GitHub趋势面板 -->
-          <div class="tab-panel" id="tab-github">
-            <div class="trends-list" id="github-list">
-              <div class="list-loading">loading...</div>
-            </div>
-          </div>
-          <!-- 科技新闻面板 -->
-          <div class="tab-panel" id="tab-tech">
-            <div class="trends-list" id="tech-list">
               <div class="list-loading">loading...</div>
             </div>
           </div>
@@ -207,6 +194,19 @@
               <div class="list-empty">输入关键词查看关联</div>
             </div>
           </div>
+          <!-- RSS订阅面板 -->
+          <div class="tab-panel" id="tab-rss">
+            <div class="rss-add">
+              <input type="text" id="rss-input" placeholder="输入RSS/Atom订阅地址...">
+              <button class="btn-add" id="btn-add-rss">+</button>
+            </div>
+            <div class="rss-sources" id="rss-sources">
+              <div class="rss-empty">no sources</div>
+            </div>
+            <div class="rss-articles" id="rss-articles">
+              <div class="list-empty">添加订阅源后显示文章</div>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -230,6 +230,7 @@
   <script src="/static/trends.js"></script>
   <script src="/static/alerts.js"></script>
   <script src="/static/links.js"></script>
+  <script src="/static/rss.js"></script>
   <script src="/static/init.js"></script>
 </body>
 </html>

@@ -94,12 +94,11 @@ The system includes multiple built-in tools:
 
 ### 4. Intelligence Panel
 
-- **INTELLIGENCE Panel**: Display trending searches and tech news (data source: [orz.ai](https://orz.ai/))
+- **INTELLIGENCE Panel**: Display trending searches (data source: [orz.ai](https://orz.ai/))
   - HOT: Aggregated trending from multiple platforms (Baidu, Weibo, Zhihu, Douyin, Bilibili, etc.)
-  - GITHUB: GitHub Trending projects
-  - TECH: Tech news (少数派, 36Kr, 掘金, V2EX, Hacker News)
   - ALERTS: Keyword monitoring and alerts
   - LINKS: Keyword association analysis
+  - RSS: Custom RSS subscription
 - All items are clickable and link to original pages
 
 ### 5. Keyword Monitoring & Alerts
@@ -109,6 +108,7 @@ The system includes multiple built-in tools:
 - **Real-time Push**: SSE pushes new alerts to frontend instantly
 - **Event Timeline**: Click keyword to view complete alert history
 - **Persistent Storage**: Alert rules and history stored in `data/` directory
+- **Duplicate Detection**: Same keyword (case-insensitive) cannot be added, shows "already exists"
 
 ### 6. Keyword Association Analysis
 
@@ -116,6 +116,11 @@ The system includes multiple built-in tools:
 - **Smart Analysis**: Analyzes related keywords from current trending data
 - **One-click Alert**: Click any association keyword to add to ALERTS
 - **Relevance Score**: Shows relevance percentage for each associated keyword
+
+### 7. RSS Subscription
+
+- **Add Subscription**: Enter RSS/Atom URL in RSS tab to add
+- **Duplicate Detection**: Same URL (case-insensitive) cannot be added, shows "URL already exists"
 
 ### 7. Frontend Features
 
@@ -240,6 +245,37 @@ The service provides the following REST APIs:
 | `/api/alerts/history/all` | DELETE | Clear alert history |
 | `/api/alerts/timeline/{keyword}` | GET | Get keyword timeline |
 | `/api/alerts/stream` | GET | SSE alert stream (real-time push) |
+| `/api/rss` | GET/POST | Get/create RSS subscription |
+| `/api/rss/{id}` | DELETE | Delete RSS source |
+| `/api/rss/{id}/toggle` | POST | Enable/disable RSS source |
+| `/api/rss/articles` | GET | Get all RSS sources latest articles |
+| `/api/rss/stream` | GET | SSE RSS article stream (real-time push) |
+
+## RSS Subscription Feature
+
+### Description
+
+- **Add Subscription**: In INTELLIGENCE panel's RSS tab, enter RSS/Atom URL to add
+- **Scheduled Fetch**: Background thread fetches every 60 seconds (check interval 1 second)
+- **Real-time Push**: New articles pushed to frontend via SSE
+- **Article Storage**: Each source keeps latest 10 articles
+
+### Usage Example
+
+Add RSS subscription:
+```bash
+curl -X POST http://localhost:8000/api/rss \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.ruanyifeng.com/blog/atom.xml"}'
+```
+
+### Graceful Shutdown
+
+**Important**: Close browser tab first to disconnect SSE connections before pressing Ctrl+C.
+
+Exit steps:
+1. Close browser tab (or refresh to disconnect SSE connections)
+2. Press Ctrl+C to exit
 
 ## Performance Optimization
 

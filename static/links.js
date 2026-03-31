@@ -46,8 +46,15 @@ function renderLinkResults(data) {
   $linkResults.querySelectorAll('.link-result-item').forEach(el => {
     el.addEventListener('click', async () => {
       const keyword = el.dataset.keyword;
-      await addAlert(keyword);
-      switchIntelligenceTab('alerts');
+      const res = await fetch(`${API}/api/alerts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword }),
+      });
+      
+      if (res.ok) {
+        switchIntelligenceTab('alerts');
+      }
     });
   });
 }

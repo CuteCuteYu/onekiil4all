@@ -14,8 +14,15 @@ loadTrends();
 loadAlerts();
 loadAlertHistory();
 
+// 加载RSS订阅
+loadRssSources();
+loadRssArticles();
+
 // 启动告警流监听
 startAlertStream();
+
+// 启动RSS流监听
+startRssStream();
 
 // 定时刷新待办事项
 todoPollInterval = setInterval(loadTodo, POLL_INTERVAL);
@@ -115,3 +122,32 @@ document.querySelectorAll('.tools-tabs .tab-btn').forEach(btn => {
     if (panel) panel.classList.add('active');
   });
 });
+
+// 初始化INTELLIGENCE面板标签页切换
+document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.intelligence-content .tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = btn.dataset.tab;
+    const panel = document.getElementById(`tab-${tabId}`);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+// RSS按钮事件
+if ($btnAddRss) {
+  $btnAddRss.addEventListener('click', () => {
+    const url = $rssInput.value.trim();
+    if (url) addRssSource(url);
+  });
+}
+
+if ($rssInput) {
+  $rssInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const url = $rssInput.value.trim();
+      if (url) addRssSource(url);
+    }
+  });
+}
