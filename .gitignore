@@ -54,3 +54,6 @@ htmlcov/
 .claude/
 *.bak
 *.tmp
+
+# Agent config
+AGENTS.md
