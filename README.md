@@ -110,8 +110,8 @@ onekiil4all/
 
 ### 4. 情报分析面板
 
-- **INTELLIGENCE 面板**：展示热门搜索（数据来源：[orz.ai](https://orz.ai/)）
-  - HOT：聚合多个平台的热门热搜（百度、微博、知乎、抖音、B站等）
+- **INTELLIGENCE 面板**：展示热门搜索（自建多平台抓取，直连各平台官方接口，不依赖第三方聚合站）
+  - HOT：聚合多个平台的热搜排行榜（微博、百度、头条、B站、抖音）与 GitHub 新仓库、科技新闻（HackerNews、少数派、钛媒体、36氪、InfoQ）
   - ALERTS：关键词监控和告警
   - LINKS：关键词关联分析
   - RSS：自定义 RSS 订阅源
@@ -397,6 +397,7 @@ MIT License
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM 应用框架
 - [Anthropic Claude](https://www.anthropic.com/) - 大语言模型 API 协议
 - [DeepAgents](https://github.com/deepagents) - Agent 框架
-- [orz.ai](https://orz.ai/) - 热点数据 API 提供
+- 微博/百度/头条/B站/抖音 - 热搜榜单数据源
+- [HackerNews API](https://github.com/HackerNews/API) - 科技新闻数据源
 - [站长工具](https://www.chinaz.com/) - IP查询、WHOIS、网站安全检测
 - [阿里云漏洞库](https://avd.aliyun.com/) - CVE漏洞查询

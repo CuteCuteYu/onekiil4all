@@ -203,8 +203,18 @@ app.add_middleware(
 # 静态文件服务与路由注册
 # ═══════════════════════════════════════════════════════════════════════
 
+
+class _NoCacheStaticFiles(StaticFiles):
+    """开发用静态文件服务：禁用浏览器缓存，避免改前端代码后看不到效果"""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 # 挂载静态文件目录到 /static 路径
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/static", _NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # 注册API路由
 app.include_router(chat_router)

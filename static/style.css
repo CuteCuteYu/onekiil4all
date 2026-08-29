@@ -1639,6 +1639,15 @@ html, body {
   text-decoration: underline;
   color: var(--fg-muted);
 }
+/**
+ * 热度数值
+ */
+.trend-hot {
+  color: var(--fg-dim);
+  font-size: 9px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
 
 /**
  * 趋势项元信息

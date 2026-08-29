@@ -111,7 +111,7 @@ onekiil4all/
 │   │   ├── meta_api.py       # Skills/tools routes
 │   │   └── intelligence_api.py # Trends/alerts/rss routes
 │   └── intelligence/         # Intelligence module
-│       ├── trends.py         # Trending data (concurrent fetch + TTL cache)
+│       ├── trends.py         # Multi-source trending fetch (official APIs, TTL cache)
 │       ├── alert_manager.py  # Alert management
 │       ├── rss_manager.py    # RSS subscription store
 │       └── rss_parser.py     # Shared RSS/Atom parsing

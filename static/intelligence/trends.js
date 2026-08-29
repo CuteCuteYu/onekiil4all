@@ -38,11 +38,21 @@ function groupBySource(data) {
   return groups;
 }
 
+function formatHot(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+  return String(n);
+}
+
 function renderHotsearchItem(item) {
+  const hot = formatHot(item.hot);
   return `
     <div class="trend-item">
       <div class="trend-item-title">
         <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener">${escapeHtml(item.word)}</a>
+        ${hot ? `<span class="trend-hot">${hot}</span>` : ''}
       </div>
     </div>
   `;

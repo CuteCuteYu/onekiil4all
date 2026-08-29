@@ -107,7 +107,7 @@ The system includes multiple built-in tools:
 
 ### 4. Intelligence Panel
 
-- **INTELLIGENCE Panel**: Display trending searches (data source: [orz.ai](https://orz.ai/))
+- **INTELLIGENCE Panel**: Display trending searches (self-built multi-platform fetching, direct official APIs, no third-party aggregator)
   - HOT: Aggregated trending from multiple platforms (Baidu, Weibo, Zhihu, Douyin, Bilibili, etc.)
   - ALERTS: Keyword monitoring and alerts
   - LINKS: Keyword association analysis
@@ -368,6 +368,7 @@ MIT License
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM application framework
 - [Anthropic Claude](https://www.anthropic.com/) - LLM API protocol
 - [DeepAgents](https://github.com/deepagents) - Agent framework
-- [orz.ai](https://orz.ai/) - Trending data API provider
+- Weibo/Baidu/Toutiao/Bilibili/Douyin - hot search data sources
+- [HackerNews API](https://github.com/HackerNews/API) - tech news data source
 - [Chinaz](https://www.chinaz.com/) - IP lookup, WHOIS, website security scanning
 - [Aliyun AVD](https://avd.aliyun.com/) - CVE vulnerability database
