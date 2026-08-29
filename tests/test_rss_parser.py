@@ -50,6 +50,28 @@ ATOM_NO_NS_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </feed>
 """
 
+RDF_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns="http://purl.org/rss/1.0/"
+         xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel rdf:about="https://example.com/feed">
+    <title>RDF测试源</title>
+    <link>https://example.com</link>
+    <description>RDF描述</description>
+  </channel>
+  <item rdf:about="https://example.com/rdf/1">
+    <title>RDF条目一</title>
+    <link>https://example.com/rdf/1</link>
+    <description>RDF摘要一</description>
+    <dc:date>2026-04-01T00:00:00Z</dc:date>
+  </item>
+  <item rdf:about="https://example.com/rdf/2">
+    <title>RDF条目二</title>
+    <link>https://example.com/rdf/2</link>
+  </item>
+</rdf:RDF>
+"""
+
 
 def test_parse_rss_2_0():
     articles = parse_feed(RSS_XML)
@@ -83,6 +105,17 @@ def test_parse_atom_without_namespace():
     assert len(articles) == 1
     assert articles[0]["title"] == "裸Atom条目"
     assert articles[0]["link"] == "https://example.com/bare/1"
+
+
+def test_parse_rss_1_0_rdf():
+    articles = parse_feed(RDF_XML)
+    assert len(articles) == 2
+    assert articles[0]["title"] == "RDF条目一"
+    assert articles[0]["link"] == "https://example.com/rdf/1"
+    assert articles[0]["pubDate"] == "2026-04-01T00:00:00Z"
+    assert articles[0]["description"] == "RDF摘要一"
+    assert articles[1]["title"] == "RDF条目二"
+    assert articles[1]["pubDate"] == ""
 
 
 def test_parse_feed_invalid_xml():

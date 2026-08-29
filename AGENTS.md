@@ -205,6 +205,15 @@ def get_or_create_session(thread_id: str | None) -> dict:
   2. If search itself returns nothing, `_associations_from_trends` falls back to built-in trending data using Chinese-bigram matching units (`_chinese_bigrams` / `_keyword_units`).
 - **Chinese keyword extraction**: `extract_keywords` now extracts both English words (`[a-zA-Z]{3,}` minus `_EN_STOPWORDS`) and Chinese words via jieba (`_extract_chinese_keywords`, with a 2-4 char sliding-window fallback if jieba is unavailable), filtered by `_ZH_STOPWORDS`. Chinese keywords no longer produce empty results.
 - **Frontend**: clicking a result keyword POSTs to /api/alerts with duplicate-alert feedback; on success it switches to ALERTS and highlights the new rule via `highlightAlertItem`; load text is "正在搜索并分析相关关键词...".
+### RSS Module Implementation Notes (see `web/intelligence/rss_parser.py`, `web/intelligence/rss_manager.py`, `web/api/intelligence_api.py`, `static/intelligence/rss.js`)
+
+- **Formats**: `parse_feed` supports RSS 2.0 (`<rss>`), Atom (`<feed>`, with/without namespace) and RSS 1.0 RDF/XML (`<rdf:RDF>` root, items in the `http://purl.org/rss/1.0/` namespace, optional `dc:date`). Unknown roots return `[]`.
+- **Immediate fetch on add**: `POST /api/rss` fetches articles synchronously (via `asyncio.to_thread`) right after creating the source and saves them, so the frontend's `loadRssArticles()` shows content immediately without waiting for the background `rss_checker` cycle. Fetch failure keeps the source with empty articles; the background task retries on its normal interval.
+- **Background updates**: `check_rss_sources` in `web_server.py` runs every `RSS_CHECK_INTERVAL` (default 10s), fetches only sources whose `fetch_interval` has elapsed, and pushes new articles via the `/api/rss/stream` SSE broadcaster (single-layer events, never re-wrapped).
+- **Frontend**: `addRssSource` POSTs then calls `loadRssSources()` + `loadRssArticles()`; `startRssStream` consumes SSE and re-fetches articles on new events.
+### Dev Server Notes (see `web/web_server.py`)
+
+- **Graceful shutdown timeout**: `uvicorn.run(..., timeout_graceful_shutdown=5)` force-exits the worker after 5s even with open SSE connections. Without it, `reload=True` hot-reload hangs forever at "Waiting for connections to close" because the browser's SSE streams (`/api/rss/stream`, `/api/alerts/stream`) keep the old worker alive — every request then times out and the page spins. Never remove this timeout.
 ---
 ## Notes
 

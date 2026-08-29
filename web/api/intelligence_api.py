@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from web.intelligence.alert_manager import alert_manager
 from web.intelligence.rss_manager import rss_manager
+from web.intelligence.rss_parser import fetch_rss_articles
 from web.intelligence.trends import get_keyword_associations, get_trends
 from web.sse import EventBroadcaster, sse_format
 
@@ -176,7 +177,7 @@ async def api_get_rss():
 
 @router.post("/api/rss")
 async def api_create_rss(request: Request):
-    """创建新的RSS订阅源"""
+    """创建新的RSS订阅源（创建后立即抓取文章，前端无需手动刷新即可看到）"""
     body = await request.json()
     url = body.get("url", "").strip()
     if not url:
@@ -187,6 +188,11 @@ async def api_create_rss(request: Request):
         source = rss_manager.add_source(url, name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # 创建后立即抓取文章并保存，让前端添加后马上能看到内容
+    articles = await asyncio.to_thread(fetch_rss_articles, url)
+    await asyncio.to_thread(rss_manager.update_source, source.id, articles)
+
     return {"source": asdict(source)}
 
 

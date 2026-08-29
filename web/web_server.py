@@ -242,9 +242,12 @@ if __name__ == "__main__":
     import uvicorn
 
     # 默认只绑定本机回环地址；如需局域网访问设置 HOST=0.0.0.0
+    # timeout_graceful_shutdown: 优雅关闭超时(秒)。SSE 长连接会让 reload 重载
+    # 时旧 worker 永远等不到连接关闭而卡死, 加超时强制退出避免该问题
     uvicorn.run(
         "web.web_server:app",
         host=os.environ.get("HOST", "127.0.0.1"),
         port=int(os.environ.get("PORT", "8000")),
         reload=True,
+        timeout_graceful_shutdown=5,
     )

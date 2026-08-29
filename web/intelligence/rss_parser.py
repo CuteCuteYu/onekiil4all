@@ -22,6 +22,11 @@ _HEADERS = {
 # Atom 命名空间
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
+# RSS 1.0 (RDF/XML) 命名空间
+_RDF_NS = {"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
+_RSS1_NS = {"rss1": "http://purl.org/rss/1.0/"}
+_DC_NS = {"dc": "http://purl.org/dc/elements/1.1/"}
+
 # 摘要保留的最大长度
 _DESCRIPTION_LIMIT = 200
 
@@ -68,6 +73,8 @@ def parse_feed(content: str, max_items: int = 10) -> list[dict]:
         return _parse_rss(root, max_items)
     if root.tag == "feed" or root.tag == f"{{{_ATOM_NS['atom']}}}feed":
         return _parse_atom(root, max_items)
+    if root.tag == f"{{{_RDF_NS['rdf']}}}RDF":
+        return _parse_rdf(root, max_items)
     return []
 
 
@@ -140,6 +147,33 @@ def _parse_atom(root: ET.Element, max_items: int) -> list[dict]:
             "pubDate": (updated_elem.text or "").strip()
             if updated_elem is not None
             else "",
+            "description": _clean_description(
+                desc_elem.text if desc_elem is not None else None
+            ),
+        }
+        if article["title"]:
+            articles.append(article)
+
+    return articles
+
+
+def _parse_rdf(root: ET.Element, max_items: int) -> list[dict]:
+    """解析 RSS 1.0 (RDF/XML) 格式
+
+    RSS 1.0 的 item 元素直接位于 <rdf:RDF> 根下，使用默认命名空间
+    (http://purl.org/rss/1.0/)，发布时间可选 dc:date。
+    """
+    articles = []
+    for item in root.findall("rss1:item", _RSS1_NS)[:max_items]:
+        title_elem = item.find("rss1:title", _RSS1_NS)
+        link_elem = item.find("rss1:link", _RSS1_NS)
+        desc_elem = item.find("rss1:description", _RSS1_NS)
+        date_elem = item.find("dc:date", _DC_NS)
+
+        article = {
+            "title": (title_elem.text or "").strip() if title_elem is not None else "",
+            "link": (link_elem.text or "").strip() if link_elem is not None else "",
+            "pubDate": (date_elem.text or "").strip() if date_elem is not None else "",
             "description": _clean_description(
                 desc_elem.text if desc_elem is not None else None
             ),

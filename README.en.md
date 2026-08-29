@@ -144,6 +144,8 @@ The system includes multiple built-in tools:
 ### 7. RSS Subscription
 
 - **Add Subscription**: Enter RSS/Atom URL in RSS tab to add
+- **Format Support**: supports RSS 2.0, RSS 1.0 (RDF/XML) and Atom XML formats
+- **Instant Display**: articles are fetched and shown immediately after adding a source, no manual refresh needed (background task still updates periodically)
 - **Duplicate Detection**: Same URL (case-insensitive) cannot be added, shows "URL already exists"
 
 ### 8. Security Intelligence
