@@ -62,7 +62,8 @@ def check_task_completed(
         return True, ""
 
     # 检查缓存（避免重复调用AI）
-    cache_key = f"{todo_mgr.thread_id}:{hash(response[:100])}:{hash(last_action)}"
+    # 缓存键使用完整 response 的 hash，避免截断导致不同响应误命中
+    cache_key = f"{todo_mgr.thread_id}:{hash(response)}:{hash(last_action)}"
     current_time = time.time()
 
     if cache_key in _task_cache:

@@ -14,8 +14,16 @@ FastAPI Web Server - Web服务器模块
 import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
+
+# 确保项目根目录在 sys.path 中（热重载 multiprocessing spawn 时
+# 可能丢失 cwd，导致 execution_display 等顶层模块找不到）
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 # ═══════════════════════════════════════════════════════════════════════
 # 导入FastAPI和相关依赖
@@ -239,6 +247,17 @@ async def alert_page(keyword: str | None = None):
 # ═══════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    import sys
+
+    # Windows 下强制 UTF-8 模式：默认 GBK 编码会让 deepagents 内置 read_file
+    # 等工具读取 UTF-8 文件时抛 UnicodeDecodeError，导致 agent loop 中断。
+    # 检测到非 UTF-8 模式时用 -X utf8 重新启动一次。
+    if sys.platform == "win32" and not sys.flags.utf8_mode:
+        os.execv(
+            sys.executable,
+            [sys.executable, "-X", "utf8", "-m", "web.web_server"],
+        )
+
     import uvicorn
 
     # 默认只绑定本机回环地址；如需局域网访问设置 HOST=0.0.0.0

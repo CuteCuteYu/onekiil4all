@@ -7,6 +7,7 @@ Sessions - 会话管理模块
  作者: CuteCuteYu
 """
 
+import os
 import re
 import uuid
 
@@ -18,6 +19,9 @@ _SAFE_THREAD_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
 # 会话存储字典，键为线程ID，值为会话信息字典
 sessions: dict[str, dict] = {}
+
+# 单次对话最大自动迭代次数（可用环境变量覆盖）
+MAX_AUTO_ITERATIONS = int(os.environ.get("MAX_AUTO_ITERATIONS", "5"))
 
 
 def is_safe_thread_id(thread_id: str) -> bool:
@@ -56,7 +60,7 @@ def get_or_create_session(thread_id: str | None) -> dict:
     session = {
         "thread_id": new_tid,
         "last_thread_id": None,  # 上一个线程ID（用于判断是否首次消息）
-        "max_auto_iterations": 5,  # 最大自动迭代次数
+        "max_auto_iterations": MAX_AUTO_ITERATIONS,  # 最大自动迭代次数
     }
 
     # 保存会话并淘汰超额的旧会话

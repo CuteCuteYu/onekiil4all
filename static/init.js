@@ -64,6 +64,13 @@ $btnNew.addEventListener('click', () => {
   newChat();
 });
 
+// 停止按钮：中断当前 Agent 处理
+$btnStop.addEventListener('click', () => {
+  if (currentAbortController) {
+    currentAbortController.abort();
+  }
+});
+
 // 清空待发送队列按钮
 $btnClearPending.addEventListener('click', clearPendingQueue);
 

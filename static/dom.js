@@ -5,6 +5,7 @@
 const $messages = document.getElementById('messages');
 const $input = document.getElementById('msg-input');
 const $send = document.getElementById('btn-send');
+const $btnStop = document.getElementById('btn-stop');
 const $loading = document.getElementById('loading');
 const $loadingText = document.getElementById('loading-text');
 const $threadBadge = document.getElementById('thread-badge');

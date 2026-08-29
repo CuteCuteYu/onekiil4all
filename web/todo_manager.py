@@ -241,6 +241,26 @@ AI 最新响应: {response}
         if self.todo_dir.exists():
             shutil.rmtree(self.todo_dir)
 
+    def archive_todo(self) -> bool:
+        """
+        归档TODO列表（完成后保留记录）
+
+        将当前 todo.md 重命名为 todo_archive.md，保留完成记录供追溯，
+        同时清空活动TODO。返回是否归档成功。
+
+        返回:
+            归档成功返回 True，无TODO时返回 False
+        """
+        if not self.todo_file.exists():
+            return False
+        archive_file = self.todo_dir / "todo_archive.md"
+        try:
+            self.todo_file.rename(archive_file)
+            return True
+        except OSError:
+            logger.warning("TODO 归档失败", exc_info=True)
+            return False
+
     def exists(self) -> bool:
         """检查TODO文件是否存在"""
         return self.todo_file.exists()

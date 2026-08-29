@@ -214,6 +214,15 @@ def get_or_create_session(thread_id: str | None) -> dict:
 ### Dev Server Notes (see `web/web_server.py`)
 
 - **Graceful shutdown timeout**: `uvicorn.run(..., timeout_graceful_shutdown=5)` force-exits the worker after 5s even with open SSE connections. Without it, `reload=True` hot-reload hangs forever at "Waiting for connections to close" because the browser's SSE streams (`/api/rss/stream`, `/api/alerts/stream`) keep the old worker alive — every request then times out and the page spins. Never remove this timeout.
+- **UTF-8 mode auto-restart**: on Windows, `__main__` re-execs itself with `-X utf8` when `sys.flags.utf8_mode` is off. Without it, deepagents' built-in `read_file` tool and `subprocess` output decoding fail with `UnicodeDecodeError` (GBK vs UTF-8), breaking the agent loop.
+### Agent Loop / Interrupt Handling Notes (see `web/api/chat_api.py`, `web/chat_handler.py`, `static/chat.js`, `agent_set/tools_set.py`)
+
+- **Context history**: `chat_stream` loads prior user/assistant messages from the JSONL store (`_load_history` → `_jsonl_to_langchain_messages`) when the in-memory history is empty, so multi-turn context survives server restarts. Never `message_history.clear()` per request.
+- **Loop stop reasons**: `stream_chat_response` emits a `loop_end` SSE event with `reason` (`completed` / `max_iterations` / `no_next_action` / `error`) and `iterations`; the frontend maps these to user-facing messages.
+- **Interrupt handling**: the frontend shows a STOP button while the agent runs (aborts the fetch via `AbortController`). On the backend, `asyncio.CancelledError` is caught separately from `Exception` (it subclasses `BaseException`): partial responses are saved to history with `{"interrupted": True}`, TODO is preserved (task incomplete), and the error is re-raised. Never let an interrupt be swallowed by a generic `except Exception`.
+- **Tool robustness**: `run_powershell` catches `TimeoutExpired`/`OSError` and returns `[Error]` strings instead of raising (deepagents runs with `handle_tool_errors=False`, so raised tool errors abort the whole loop). `read_text_file` auto-detects encoding (utf-8 → gbk → gb18030 → latin-1) when the requested encoding fails.
+- **TODO archive**: on completion, `todo.md` is renamed to `todo_archive.md` (via `archive_todo`) instead of being deleted, preserving the task record.
+- **JS pitfall**: `pendingQueue` in `chat.js` must be `$pendingQueue` (the DOM cache from `dom.js`); a bare `pendingQueue` throws `ReferenceError` in the `finally` block after an interrupt.
 ---
 ## Notes
 

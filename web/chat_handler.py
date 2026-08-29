@@ -16,11 +16,14 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
+from langchain_core.messages import AIMessage, HumanMessage
+
 from agent_set import agent_set  # Agent模块
 from execution_display import (
     print_execution_stats,
     print_execution_steps,
 )  # 执行显示模块
+from web.chat_history_store import load_thread
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +84,27 @@ class ChatHandler:
         self.thread_id = str(uuid.uuid4())
         if old_thread_id is not None:
             self.message_history.pop(old_thread_id, None)
+
+    def _load_history(self, thread_id: str) -> list[Any]:
+        """
+        从持久化历史(JSONL)加载该线程的历史消息
+
+        将存储的 user/assistant 记录转换为 LangChain 消息对象，
+        保证多轮对话上下文在服务重启后仍能恢复。
+
+        参数:
+            thread_id: 线程ID
+
+        返回:
+            LangChain 消息列表，无历史时返回空列表
+        """
+        try:
+            data = load_thread(thread_id)
+            if data and data.get("messages"):
+                return _jsonl_to_langchain_messages(data["messages"])
+        except Exception:
+            logger.warning("加载线程历史失败: %s", thread_id, exc_info=True)
+        return []
 
     def chat(
         self, content: str, verbose: bool = True, history: list[Any] | None = None
@@ -148,9 +172,9 @@ class ChatHandler:
         """
         thread_id = self.current_thread_id
 
-        # 如果线程没有历史记录，初始化为空列表
-        if thread_id not in self.message_history:
-            self.message_history[thread_id] = []
+        # 如果线程没有历史记录，从持久化历史(JSONL)加载，保证多轮对话上下文
+        if thread_id not in self.message_history or not self.message_history[thread_id]:
+            self.message_history[thread_id] = self._load_history(thread_id)
 
         messages = self.message_history[thread_id].copy()
         messages.append({"role": "user", "content": content})
@@ -303,6 +327,33 @@ def _chunk_text(chunk: Any) -> str:
     if chunk is None:
         return ""
     return content_to_text(getattr(chunk, "content", None))
+
+
+def _jsonl_to_langchain_messages(records: list[dict]) -> list[Any]:
+    """
+    将 JSONL 历史记录转换为 LangChain 消息列表
+
+    只转换 user/assistant 角色消息，跳过会话头等元数据记录。
+
+    参数:
+        records: load_thread 返回的 messages 列表
+
+    返回:
+        LangChain 消息列表（HumanMessage / AIMessage）
+    """
+    messages: list[Any] = []
+    for record in records:
+        if record.get("type") != "message":
+            continue
+        role = record.get("role")
+        content = record.get("content", "")
+        if not content:
+            continue
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            messages.append(AIMessage(content=content))
+    return messages
 
 
 # ═══════════════════════════════════════════════════════════════════════

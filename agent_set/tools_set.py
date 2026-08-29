@@ -66,16 +66,26 @@ def run_powershell(command: str) -> str:
         命令的标准输出内容。如果执行失败（返回码非0），
         则在输出末尾附加"[Error]"前缀的错误信息（stderr）
     """
-    result = subprocess.run(
-        ["powershell", "-Command", command],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=False,
-    )
-    output = result.stdout.strip()
+    try:
+        result = subprocess.run(
+            ["powershell", "-Command", command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",  # PowerShell 输出可能是 GBK，容错解码避免崩溃
+            timeout=60,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        # 命令超时：返回错误信息而非抛出异常，避免中断 agent loop
+        return "[Error] 命令执行超时（60秒），已终止"
+    except OSError as e:
+        return f"[Error] 命令执行失败: {e}"
+
+    # stdout/stderr 可能为 None（如输出非文本时），统一转为空字符串
+    output = (result.stdout or "").strip()
     if result.returncode != 0:
-        output += f"\n[Error] {result.stderr.strip()}"
+        output += f"\n[Error] {(result.stderr or '').strip()}"
     return output
 
 
@@ -104,7 +114,7 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
 
     参数:
         filename: 文件名（相对路径或绝对路径）
-        encoding: 文件编码，默认为utf-8
+        encoding: 文件编码，默认为utf-8；指定编码解码失败时自动尝试常见编码
 
     返回:
         文件的文本内容。如果文件不存在或读取失败，返回错误信息
@@ -115,17 +125,30 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
 
     try:
         content = filepath.read_text(encoding=encoding)
-        # 显示文件信息
-        lines = content.count("\n") + 1
-        chars = len(content)
-        header = f"=== 文件: {filepath} ({lines} 行, {chars} 字符) ===\n\n"
-        return header + content
+    except UnicodeDecodeError:
+        # 指定编码失败时自动尝试常见编码，避免 Windows 默认 GBK 环境下的解码问题
+        content = None
+        for enc in ("utf-8", "gbk", "gb18030", "latin-1"):
+            if enc == encoding:
+                continue
+            try:
+                content = filepath.read_text(encoding=enc)
+                encoding = enc
+                break
+            except (UnicodeDecodeError, OSError):
+                continue
+        if content is None:
+            return f"[Error] 无法使用编码 {encoding} 解码文件，可能是二进制文件或编码不匹配"
     except FileNotFoundError:
         return f"[Error] 文件不存在: {filepath}"
-    except UnicodeDecodeError:
-        return f"[Error] 无法使用编码 {encoding} 解码文件，可能是二进制文件或编码不匹配"
     except OSError as e:
         return f"[Error] 读取文件失败: {e}"
+
+    # 显示文件信息
+    lines = content.count("\n") + 1
+    chars = len(content)
+    header = f"=== 文件: {filepath} ({lines} 行, {chars} 字符, {encoding}) ===\n\n"
+    return header + content
 
 
 @tool

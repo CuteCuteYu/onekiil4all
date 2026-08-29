@@ -896,6 +896,28 @@ html, body {
   cursor: default;
 }
 
+/**
+ * 停止按钮（Agent 运行中显示）
+ */
+.btn-stop {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--danger, #e5484d);
+  color: var(--danger, #e5484d);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color .2s;
+  white-space: nowrap;
+}
+.btn-stop:hover {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    加载状态样式

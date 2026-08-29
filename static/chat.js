@@ -25,6 +25,9 @@ async function sendMessage(text) {
 
   setBusyState(true);
   setLoading(true, 'processing');
+  // Agent 运行中显示 STOP 按钮，隐藏 SEND
+  $btnStop.style.display = 'inline-block';
+  $send.style.display = 'none';
 
   renderMessage('user', text);
 
@@ -72,6 +75,16 @@ async function sendMessage(text) {
             } else if (event.type === 'todo_created') {
               appendProgressMessage('任务清单已创建', 'success');
               setTimeout(loadTodo, 500);
+            } else if (event.type === 'loop_end') {
+              // agent loop 结束，展示停止原因
+              const reasons = {
+                completed: '任务已完成',
+                max_iterations: `已达最大迭代次数(${event.iterations}次)`,
+                no_next_action: '无下一步操作',
+                no_todo: '无任务清单'
+              };
+              const msg = reasons[event.reason] || '处理完成';
+              appendProgressMessage(msg, event.reason === 'completed' ? 'success' : 'info');
             } else if (event.type === 'tool_call') {
               appendProgressMessage(`[工具] ${event.name}: ${event.status}`, 'info');
             } else if (event.type === 'segment_start') {
@@ -104,7 +117,7 @@ async function sendMessage(text) {
   } catch (e) {
     removeStreamingMessage();
     if (e.name === 'AbortError') {
-      appendProgressMessage('已中断', 'warning');
+      appendProgressMessage('已中断，任务未完成', 'warning');
     } else {
       console.error('Chat error:', e);
       appendProgressMessage(`错误: ${e.message}`, 'error');
@@ -113,14 +126,17 @@ async function sendMessage(text) {
     setBusyState(false);
     setLoading(false);
     currentAbortController = null;
+    // 恢复按钮状态：隐藏 STOP，显示 SEND
+    $btnStop.style.display = 'none';
+    $send.style.display = 'inline-block';
 
     if (pendingMessages.length > 0 && !busy) {
       const nextMsg = pendingMessages.shift();
-      pendingQueue.classList.add('active');
+      $pendingQueue.classList.add('active');
       renderPendingList();
       await sendMessage(nextMsg);
     } else if (pendingMessages.length === 0) {
-      pendingQueue.classList.remove('active');
+      $pendingQueue.classList.remove('active');
     }
   }
 }
@@ -128,7 +144,7 @@ async function sendMessage(text) {
 function addPendingMessage(text) {
   pendingMessages.push(text);
   renderPendingList();
-  pendingQueue.classList.add('active');
+  $pendingQueue.classList.add('active');
 }
 
 function renderPendingList() {
@@ -145,7 +161,7 @@ function renderPendingList() {
       pendingMessages.splice(index, 1);
       renderPendingList();
       if (pendingMessages.length === 0) {
-        pendingQueue.classList.remove('active');
+        $pendingQueue.classList.remove('active');
       }
     });
   });
@@ -153,5 +169,5 @@ function renderPendingList() {
 
 function clearPendingQueue() {
   pendingMessages = [];
-  pendingQueue.classList.remove('active');
+  $pendingQueue.classList.remove('active');
 }

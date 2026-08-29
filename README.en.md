@@ -83,9 +83,10 @@ onekiil4all/
 
 ### 1. Smart Conversation
 
-- Continuous conversation with context memory
+- Continuous conversation with context memory (history restored from JSONL persistence, survives server restart)
 - Automatic task decomposition and execution
 - SSE streaming responses
+- **Interruptible**: STOP button appears while the agent is processing; clicking it interrupts immediately. Partial responses are auto-saved to history (marked `interrupted`), TODO is preserved (task incomplete)
 
 ### 2. TODO Task Management
 

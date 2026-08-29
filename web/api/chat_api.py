@@ -107,14 +107,17 @@ async def stream_chat_response(message: str, thread_id: str | None):
         SSE格式的数据字符串，包含各种事件类型
     """
     async with _chat_lock:
+        # 提前定义，供 except/finally 中断处理使用
+        stream_result: dict = {}
+        tid: str | None = None
         try:
             # 获取或创建会话
             session = get_or_create_session(thread_id)
             tid = session["thread_id"]
 
-            # 切换到指定的会话
+            # 切换到指定的会话（历史由 chat_stream 从持久化 JSONL 自动恢复，
+            # 不再清空 message_history，保证多轮对话上下文完整）
             chat_handler.thread_id = tid
-            chat_handler.message_history.clear()
 
             # 保存用户消息到历史记录
             append_message(tid, "user", message)
@@ -149,7 +152,6 @@ async def stream_chat_response(message: str, thread_id: str | None):
             yield sse_format({"type": "status", "message": status_msg})
 
             # 流式执行并转发事件
-            stream_result: dict = {}
             async for sse_frame in _stream_agent_events(message, stream_result):
                 yield sse_frame
             response, details = (
@@ -171,6 +173,9 @@ async def stream_chat_response(message: str, thread_id: str | None):
             # ═════════════════════════════════════════════════════════════
             iteration = 0
             current_last_action = last_action
+            # 停止原因: completed(任务完成) / max_iterations(达上限) /
+            # no_next_action(无下一步) / no_todo(无任务清单)
+            loop_end_reason = "completed"
 
             # 循环检查直到达到最大迭代次数
             while iteration < session["max_auto_iterations"]:
@@ -187,10 +192,12 @@ async def stream_chat_response(message: str, thread_id: str | None):
                     if next_action:
                         # 发送备注信息
                         yield sse_format({"type": "note", "content": next_action})
+                    loop_end_reason = "completed"
                     break
 
                 # 如果有下一步操作，继续执行
                 if not next_action:
+                    loop_end_reason = "no_next_action"
                     break
 
                 yield sse_format(
@@ -208,11 +215,22 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
                 current_last_action = next_action
                 iteration += 1
+            else:
+                # while 正常结束(未 break)说明达到最大迭代次数
+                loop_end_reason = "max_iterations"
 
-            # 任务完成后删除TODO
+            # 发送 loop 结束事件，前端可据此展示停止原因
+            yield sse_format(
+                {
+                    "type": "loop_end",
+                    "reason": loop_end_reason,
+                    "iterations": iteration,
+                }
+            )
+
+            # 任务完成后归档TODO（保留完成记录供追溯，而非直接删除）
             todo_mgr = get_todo_manager()
-            if todo_mgr.exists():
-                todo_mgr.delete_todo()
+            if todo_mgr.exists() and todo_mgr.archive_todo():
                 yield sse_format({"type": "todo_deleted"})
 
             # 保存助手回复到历史记录
@@ -220,6 +238,19 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
             # 发送完成信号
             yield sse_format({"type": "done"})
+
+        except asyncio.CancelledError:
+            # 客户端断开/用户点击 STOP 中断：保存已生成的部分回复，
+            # TODO 保留（任务未完成），记录中断日志后重新抛出
+            logger.info("聊天被用户中断 (thread_id: %s)", tid)
+            if tid and stream_result.get("response"):
+                append_message(
+                    tid,
+                    "assistant",
+                    stream_result["response"],
+                    {"interrupted": True},
+                )
+            raise
 
         except Exception as e:
             # 捕获所有错误并发送给前端
@@ -235,6 +266,10 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
             # 发送错误事件
             yield sse_format({"type": "error", "message": error_msg})
+            # 出错时也发送 loop_end，让前端明确知道 loop 因错误停止
+            yield sse_format(
+                {"type": "loop_end", "reason": "error", "iterations": 0}
+            )
             yield sse_format({"type": "done"})
 
 
