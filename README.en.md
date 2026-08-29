@@ -26,26 +26,45 @@ AI Intelligent Assistant - Built with LangChain + Anthropic-compatible models
 onekiil4all/
 ├── web/                      # Web server code
 │   ├── web_server.py         # FastAPI app assembly (lifespan/static/routes)
+│   ├── background_tasks.py   # Background tasks (alert check / RSS fetch loops)
 │   ├── chat_handler.py       # Chat handler (token-level streaming)
+│   ├── message_utils.py      # Message conversion utils
 │   ├── conversation.py       # Conversation management
-│   ├── task_analyzer.py      # Task analyzer
+│   ├── task_analyzer.py      # Task analyzer (completion check)
+│   ├── task_cache.py         # Task status cache
+│   ├── task_prompts.py       # Task analysis prompt builders
 │   ├── todo_manager.py       # TODO manager
+│   ├── todo_prompts.py       # TODO prompt builders
 │   ├── sessions.py           # Session store (bounded)
 │   ├── chat_history_store.py # Chat history (JSONL append)
 │   ├── sse.py                # SSE formatting + per-connection broadcast
 │   ├── paths.py              # Project path constants (anchored to root)
-│   ├── api/                  # API routers
-│   │   ├── chat_api.py       # Chat/session/todo/history routes
+│   ├── api/                  # API routers (split by responsibility)
+│   │   ├── chat_api.py       # Chat SSE streaming
+│   │   ├── session_api.py    # Sessions / TODO query
+│   │   ├── history_api.py    # Chat history CRUD
 │   │   ├── meta_api.py       # Skills/tools routes
-│   │   └── intelligence_api.py # Trends/alerts/rss routes
+│   │   ├── intelligence_api.py # Trends / associations
+│   │   ├── alert_api.py      # Alert rules / history / SSE
+│   │   └── rss_api.py        # RSS sources / articles / SSE
 │   └── intelligence/         # Intelligence module
-│       ├── trends.py         # Trending data (concurrent + TTL cache)
+│       ├── trends/           # Trending data package (split by responsibility)
+│       │   ├── __init__.py   # Entry (get_trends + cache)
+│       │   ├── parsers.py    # Platform parse pure functions
+│       │   ├── fetchers.py   # Network fetching + concurrency
+│       │   ├── keywords.py   # Chinese/English keyword extraction
+│       │   └── associations.py # Keyword association analysis
 │       ├── alert_manager.py  # Alert management
+│       ├── alert_models.py   # Alert data models
 │       ├── rss_manager.py    # RSS subscription store
 │       └── rss_parser.py     # Shared RSS/Atom parsing
 ├── agent_set/                # Agent components
 │   ├── agent_set.py          # Agent creation
-│   ├── tools_set.py          # Tool set definitions
+│   ├── tools/                # Tool set package (split by responsibility)
+│   │   ├── __init__.py       # Tool list export
+│   │   ├── shell.py          # PowerShell command execution
+│   │   ├── files.py          # File read/write
+│   │   └── search.py         # Web search + RSS fetch
 │   └── skill_set.py          # Skill configuration
 ├── model_set/                # Model configuration
 │   └── model_set.py          # Model configuration (ANTHROPIC_* env vars)

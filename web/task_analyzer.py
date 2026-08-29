@@ -12,19 +12,12 @@ Task Analyzer - 任务分析模块
 
 import ast
 import logging
-import time
 
 from web.conversation import get_todo_manager
+from web.task_cache import get_cached, set_cached
+from web.task_prompts import build_efficient_update_prompt
 
 logger = logging.getLogger(__name__)
-
-# ═══════════════════════════════════════════════════════════════════════
-# 任务状态缓存
-# 用于缓存最近的任务状态检查结果，避免重复调用AI
-# ═══════════════════════════════════════════════════════════════════════
-
-_task_cache = {}  # 缓存字典
-_CACHE_TIMEOUT = 30  # 缓存超时时间（秒）
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -64,13 +57,10 @@ def check_task_completed(
     # 检查缓存（避免重复调用AI）
     # 缓存键使用完整 response 的 hash，避免截断导致不同响应误命中
     cache_key = f"{todo_mgr.thread_id}:{hash(response)}:{hash(last_action)}"
-    current_time = time.time()
 
-    if cache_key in _task_cache:
-        cache_time, cached_result = _task_cache[cache_key]
-        if current_time - cache_time < _CACHE_TIMEOUT:
-            logger.debug("使用缓存结果")
-            return cached_result
+    cached = get_cached(cache_key)
+    if cached is not None:
+        return cached
 
     # 调用AI更新TODO状态
     logger.info("正在分析任务完成状态...")
@@ -99,10 +89,7 @@ def check_task_completed(
         result = (all_completed, next_action)
 
         # 缓存结果
-        _task_cache[cache_key] = (current_time, result)
-
-        # 清理过期缓存
-        _clean_old_cache(current_time)
+        set_cached(cache_key, result)
 
         return result
 
@@ -135,28 +122,7 @@ def _efficient_update_todo(
         return [], True
 
     # 构建高效的提示词
-    task_descriptions = "\n".join(
-        [f"{i + 1}. {t['description']}" for i, t in enumerate(tasks)]
-    )
-    completed_tasks = [t["description"] for t in tasks if t.get("completed", False)]
-    completed_str = "\n".join(completed_tasks) if completed_tasks else "无"
-
-    prompt = f"""快速更新任务状态。基于以下信息，标记哪些任务已完成：
-
-当前任务：
-{task_descriptions}
-
-AI最新响应摘要：{response[:300]}
-
-最后操作：{last_action[:100]}
-
-已标记完成的任务：
-{completed_str}
-
-请只返回数字列表，表示已完成的任务编号（从1开始）。
-例如：如果任务1和3已完成，返回：[1, 3]
-如果没有新任务完成，返回：[]
-只返回列表，不要其他内容。"""
+    prompt = build_efficient_update_prompt(tasks, response, last_action)
 
     try:
         # 使用较小的max_tokens加快响应
@@ -239,23 +205,3 @@ def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str]:
         return False, ""
     logger.info("所有任务标记为已完成")
     return True, ""
-
-
-def _clean_old_cache(current_time: float):
-    """
-    清理过期缓存
-
-    定期清理超过超时时间的缓存条目
-
-    参数:
-        current_time: 当前时间戳
-    """
-    expired_keys = [
-        key
-        for key, (cache_time, _) in _task_cache.items()
-        if current_time - cache_time > _CACHE_TIMEOUT
-    ]
-    for key in expired_keys:
-        del _task_cache[key]
-    if expired_keys:
-        logger.debug("清理了 %d 个过期缓存", len(expired_keys))

@@ -21,7 +21,7 @@ from model_set import model_set  # 模型配置
 # 导入项目内部模块
 # ═══════════════════════════════════════════════════════════════
 from .skill_set import create_skill_store  # 技能存储创建
-from .tools_set import tools  # 工具列表
+from .tools import tools  # 工具列表
 
 # ═══════════════════════════════════════════════════════════════
 # 初始化技能存储

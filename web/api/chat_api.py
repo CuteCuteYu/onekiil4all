@@ -1,8 +1,9 @@
 """
 ========================================
-Chat API - 聊天与会话路由
+Chat API - 聊天路由
 ========================================
-功能: 聊天SSE流式接口、会话管理、TODO查询、对话历史
+功能: 聊天SSE流式接口、新建对话
+（会话列表/TODO/历史路由见 session_api.py 与 history_api.py）
  作者: CuteCuteYu
 """
 
@@ -14,22 +15,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from web.chat_handler import chat_handler
-from web.chat_history_store import (
-    append_message,
-    delete_thread,
-    list_sessions,
-    load_thread,
-)
+from web.chat_history_store import append_message
 from web.conversation import create_todo_for_request, get_todo_manager, new_chat
-from web.sessions import (
-    get_or_create_session,
-    is_safe_thread_id,
-    remove_session,
-    sessions,
-)
+from web.sessions import get_or_create_session
 from web.sse import sse_format
 from web.task_analyzer import check_task_completed
-from web.todo_manager import TodoManager
 
 logger = logging.getLogger(__name__)
 
@@ -316,106 +306,3 @@ async def api_new_chat(req: NewChatRequest | None = None):
     tid = chat_handler.current_thread_id
     get_or_create_session(tid)
     return {"thread_id": tid}
-
-
-@router.get("/api/sessions")
-async def api_list_sessions():
-    """列出所有会话"""
-    return {"sessions": list(sessions.keys())}
-
-
-@router.get("/api/todo")
-async def api_get_todo(thread_id: str):
-    """
-    获取当前TODO列表
-
-    参数:
-        thread_id: 线程ID
-
-    返回:
-        包含TODO任务列表、已完成数、总任务数等信息
-    """
-    if not is_safe_thread_id(thread_id):
-        raise HTTPException(status_code=400, detail="非法的线程ID")
-
-    todo_mgr = TodoManager(thread_id)
-    if not todo_mgr.exists():
-        return {"exists": False}
-
-    # 读取TODO任务
-    tasks, _content = todo_mgr.read_todo()
-    # 统计已完成任务数
-    completed_count = sum(1 for t in tasks if t.get("completed", False))
-
-    return {
-        "exists": True,
-        "tasks": tasks,
-        "completed_count": completed_count,
-        "total_count": len(tasks),
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# 对话历史
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@router.get("/api/history")
-async def api_get_history():
-    """
-    获取所有聊天历史会话列表
-
-    返回:
-        历史会话列表，按创建时间倒序排列
-    """
-    return {"history": list_sessions()}
-
-
-@router.get("/api/history/{thread_id}")
-async def api_get_chat_history(thread_id: str):
-    """
-    获取指定会话的聊天历史详情
-
-    参数:
-        thread_id: 会话线程ID
-
-    返回:
-        包含该会话的所有消息
-    """
-    try:
-        data = load_thread(thread_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="非法的线程ID")
-    if data is None:
-        raise HTTPException(status_code=404, detail="会话不存在")
-    return data
-
-
-@router.delete("/api/history/{thread_id}")
-async def api_delete_history(thread_id: str):
-    """
-    删除指定会话
-
-    同时删除会话历史文件和对应的TODO目录
-
-    参数:
-        thread_id: 要删除的会话线程ID
-
-    返回:
-        删除结果
-    """
-    if not is_safe_thread_id(thread_id):
-        raise HTTPException(status_code=400, detail="非法的线程ID")
-
-    deleted = delete_thread(thread_id)
-
-    # 删除TODO目录
-    todo_mgr = TodoManager(thread_id)
-    if todo_mgr.exists():
-        todo_mgr.delete_todo()
-        deleted = True
-
-    # 从会话字典中移除
-    remove_session(thread_id)
-
-    return {"deleted": deleted}

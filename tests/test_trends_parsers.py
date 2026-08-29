@@ -2,7 +2,7 @@
 
 import json
 
-from web.intelligence.trends import (
+from web.intelligence.trends.parsers import (
     parse_baidu,
     parse_bilibili,
     parse_douyin,
@@ -174,7 +174,7 @@ def test_item_limit():
     assert len(items) == 15
 
 def test_extract_keywords_filters_english_stopwords():
-    from web.intelligence.trends import extract_keywords
+    from web.intelligence.trends.keywords import extract_keywords
 
     words = extract_keywords("ChatGPT and the new AI era")
     assert "the" not in words
@@ -185,7 +185,7 @@ def test_extract_keywords_filters_english_stopwords():
 
 
 def test_extract_keywords_chinese_and_english():
-    from web.intelligence.trends import extract_keywords
+    from web.intelligence.trends.keywords import extract_keywords
 
     # 中文产出关联词(修复: 回退链路对中文关键词返回空)
     words = extract_keywords("人工智能赋能电商发展")
@@ -199,7 +199,7 @@ def test_extract_keywords_chinese_and_english():
 
 
 def test_associations_from_titles_extracts_chinese_and_english():
-    from web.intelligence.trends import _associations_from_titles
+    from web.intelligence.trends.associations import _associations_from_titles
 
     titles = [
         "伊朗 - 维基百科，自由的百科全书",
@@ -223,20 +223,20 @@ def test_associations_from_titles_extracts_chinese_and_english():
 
 
 def test_chinese_bigrams_for_matching_only():
-    from web.intelligence.trends import _chinese_bigrams, _keyword_units
+    from web.intelligence.trends.keywords import chinese_bigrams, keyword_units
 
     # bigram 仅用于匹配:中文长词拆出短变体
-    assert "智能" in _chinese_bigrams("人工智能")
-    assert "电商" in _chinese_bigrams("人工智能赋能电商发展")
+    assert "智能" in chinese_bigrams("人工智能")
+    assert "电商" in chinese_bigrams("人工智能赋能电商发展")
 
     # 匹配单元组合:完整词 + 中文 bigram
-    units = _keyword_units("人工智能")
+    units = keyword_units("人工智能")
     assert "人工智能" in units
     assert "智能" in units
-    assert "ai" in _keyword_units("AI")
+    assert "ai" in keyword_units("AI")
 
 def test_parse_keywords_from_llm_various_formats():
-    from web.intelligence.trends import _parse_keywords_from_llm
+    from web.intelligence.trends.associations import _parse_keywords_from_llm
 
     # 裸数组
     assert _parse_keywords_from_llm('["AI","芯片","开源"]') == ["AI", "芯片", "开源"]

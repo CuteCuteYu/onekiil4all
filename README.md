@@ -26,26 +26,45 @@ AI 智能助手 - 基于 LangChain + Anthropic 兼容模型构建
 onekiil4all/
 ├── web/                      # Web 服务端代码
 │   ├── web_server.py         # FastAPI 应用装配入口（生命周期/静态资源/路由注册）
+│   ├── background_tasks.py   # 后台任务（告警检查/RSS抓取循环）
 │   ├── chat_handler.py       # 聊天处理器（含 token 级流式输出）
+│   ├── message_utils.py      # 消息转换工具（content/流式文本/JSONL转LangChain）
 │   ├── conversation.py       # 对话管理
-│   ├── task_analyzer.py      # 任务分析器
+│   ├── task_analyzer.py      # 任务分析器（检查任务完成状态）
+│   ├── task_cache.py         # 任务状态缓存
+│   ├── task_prompts.py       # 任务分析提示词构建
 │   ├── todo_manager.py       # TODO 管理器
+│   ├── todo_prompts.py       # TODO 提示词构建
 │   ├── sessions.py           # 会话管理（带上限淘汰）
 │   ├── chat_history_store.py # 对话历史存储（JSONL 追加写入）
 │   ├── sse.py                # SSE 事件广播（按连接 fan-out）
 │   ├── paths.py              # 项目路径常量（锚定根目录）
-│   ├── api/                  # API 路由
-│   │   ├── chat_api.py       # 聊天/会话/TODO/历史路由
+│   ├── api/                  # API 路由（按职责拆分）
+│   │   ├── chat_api.py       # 聊天 SSE 流式接口
+│   │   ├── session_api.py    # 会话列表/TODO 查询
+│   │   ├── history_api.py    # 对话历史 CRUD
 │   │   ├── meta_api.py       # 技能/工具路由
-│   │   └── intelligence_api.py # 热点/告警/RSS 路由
+│   │   ├── intelligence_api.py # 热点资讯/关联分析
+│   │   ├── alert_api.py      # 告警规则/历史/SSE
+│   │   └── rss_api.py        # RSS 订阅/文章/SSE
 │   └── intelligence/         # 情报模块
-│       ├── trends.py         # 热点数据获取（并发 + 30s 缓存）
+│       ├── trends/           # 热点数据包（按职责拆分）
+│       │   ├── __init__.py   # 主入口（get_trends + 缓存）
+│       │   ├── parsers.py    # 各平台解析纯函数
+│       │   ├── fetchers.py   # 网络抓取与并发调度
+│       │   ├── keywords.py   # 中英文关键词提取
+│       │   └── associations.py # 关键词关联分析
 │       ├── alert_manager.py  # 告警管理
+│       ├── alert_models.py   # 告警数据模型
 │       ├── rss_manager.py    # RSS 订阅管理
 │       └── rss_parser.py     # RSS/Atom 公共解析
 ├── agent_set/                # Agent 组件
 │   ├── agent_set.py          # Agent 创建
-│   ├── tools_set.py          # 工具集定义
+│   ├── tools/                # 工具集包（按职责拆分）
+│   │   ├── __init__.py       # 工具列表导出
+│   │   ├── shell.py          # PowerShell 命令执行
+│   │   ├── files.py          # 文件读写
+│   │   └── search.py         # 网络搜索与 RSS 获取
 │   └── skill_set.py          # 技能配置
 ├── model_set/                # 模型配置
 │   └── model_set.py          # 模型配置（读 ANTHROPIC_* 环境变量，缺凭据启动即报错）

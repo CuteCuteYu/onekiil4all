@@ -4,6 +4,7 @@ Chat Handler - 聊天处理模块
 ========================================
 功能: 负责处理聊天请求和调用AI模型获取响应，
 支持 token 级流式输出（astream_events）
+（消息转换工具见 message_utils.py）
  作者: CuteCuteYu
 """
 
@@ -16,10 +17,13 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from langchain_core.messages import AIMessage, HumanMessage
-
 from agent_set import agent_set  # Agent模块
 from web.chat_history_store import load_thread
+from web.message_utils import (
+    chunk_text,
+    content_to_text,
+    jsonl_to_langchain_messages,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +101,7 @@ class ChatHandler:
         try:
             data = load_thread(thread_id)
             if data and data.get("messages"):
-                return _jsonl_to_langchain_messages(data["messages"])
+                return jsonl_to_langchain_messages(data["messages"])
         except Exception:
             logger.warning("加载线程历史失败: %s", thread_id, exc_info=True)
         return []
@@ -180,7 +184,7 @@ class ChatHandler:
 
             if event_type == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
-                text = _chunk_text(chunk)
+                text = chunk_text(chunk)
                 if text:
                     yield {"type": "token", "content": text}
 
@@ -272,79 +276,6 @@ class ChatHandler:
         if messages:
             return content_to_text(messages[-1].content)
         return ""
-
-
-def content_to_text(content: Any) -> str:
-    """
-    将消息 content 统一转为纯文本
-
-    兼容两种模型返回格式：
-    - OpenAI 风格: 纯字符串
-    - Anthropic 风格: 内容块列表 [{"type": "text", "text": "..."}]
-
-    参数:
-        content: 消息 content 字段
-
-    返回:
-        拼接后的纯文本
-    """
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, str):
-                parts.append(block)
-            elif (
-                isinstance(block, dict)
-                and block.get("type") in ("text", "output_text")
-                and block.get("text")
-            ):
-                parts.append(block["text"])
-        return "".join(parts)
-    return ""
-
-
-def _chunk_text(chunk: Any) -> str:
-    """
-    提取流式消息块中的文本增量
-
-    参数:
-        chunk: AIMessageChunk 或类似对象
-
-    返回:
-        文本增量（无文本时为空字符串）
-    """
-    if chunk is None:
-        return ""
-    return content_to_text(getattr(chunk, "content", None))
-
-
-def _jsonl_to_langchain_messages(records: list[dict]) -> list[Any]:
-    """
-    将 JSONL 历史记录转换为 LangChain 消息列表
-
-    只转换 user/assistant 角色消息，跳过会话头等元数据记录。
-
-    参数:
-        records: load_thread 返回的 messages 列表
-
-    返回:
-        LangChain 消息列表（HumanMessage / AIMessage）
-    """
-    messages: list[Any] = []
-    for record in records:
-        if record.get("type") != "message":
-            continue
-        role = record.get("role")
-        content = record.get("content", "")
-        if not content:
-            continue
-        if role == "user":
-            messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            messages.append(AIMessage(content=content))
-    return messages
 
 
 # ═══════════════════════════════════════════════════════════════════════

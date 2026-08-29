@@ -3,7 +3,7 @@
 FastAPI Web Server - Web服务器模块
 ========================================
 功能: 应用装配入口 - 路由注册、生命周期管理、静态资源服务
-路由实现拆分在 web/api/ 包中
+路由实现拆分在 web/api/ 包中，后台任务见 background_tasks.py
  作者: 上古必斩必杀
 """
 
@@ -16,7 +16,6 @@ import logging
 import os
 import sys
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from pathlib import Path
 
 # 确保项目根目录在 sys.path 中（热重载 multiprocessing spawn 时
@@ -36,12 +35,15 @@ from fastapi.staticfiles import StaticFiles
 # ═══════════════════════════════════════════════════════════════════════
 # 导入项目内部模块
 # ═══════════════════════════════════════════════════════════════════════
+from web.api.alert_api import router as alert_router
 from web.api.chat_api import router as chat_router
+from web.api.history_api import router as history_router
 from web.api.intelligence_api import router as intelligence_router
 from web.api.meta_api import router as meta_router
-from web.intelligence.rss_manager import rss_manager
-from web.intelligence.rss_parser import fetch_rss_articles
-from web.intelligence.trends import get_trends, shutdown_executor
+from web.api.rss_api import router as rss_router
+from web.api.session_api import router as session_router
+from web.background_tasks import alert_checker, rss_checker
+from web.intelligence.trends import shutdown_executor
 from web.paths import STATIC_DIR
 from web.sse import EventBroadcaster
 
@@ -49,68 +51,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# 后台检查间隔（秒），可用环境变量覆盖
-ALERT_CHECK_INTERVAL = float(os.environ.get("ALERT_CHECK_INTERVAL", "30"))
-RSS_CHECK_INTERVAL = float(os.environ.get("RSS_CHECK_INTERVAL", "10"))
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# 后台RSS抓取
-# ═══════════════════════════════════════════════════════════════════════
-
-
-async def check_rss_sources(rss_broadcaster: EventBroadcaster):
-    """
-    检查所有到期的RSS源并推送新文章
-
-    抓取失败时同样记录抓取时间，形成按 fetch_interval 的自然退避，
-    避免源暂时不可用时的重试风暴
-    """
-    now = datetime.now(UTC)
-    sources = await asyncio.to_thread(rss_manager.get_all_sources)
-
-    for source in sources:
-        if not source.enabled:
-            continue
-
-        last_time = None
-        if source.last_fetch:
-            try:
-                last_time = datetime.fromisoformat(source.last_fetch)
-            except (ValueError, TypeError):
-                # 兼容旧数据中无时区的 naive 时间戳
-                last_time = None
-
-        if last_time and (now - last_time).total_seconds() < source.fetch_interval:
-            continue
-
-        articles = await asyncio.to_thread(fetch_rss_articles, source.url)
-
-        # 只推送上次抓取之后新出现的文章
-        old_links = {a.get("link") for a in source.articles}
-        new_articles = [
-            a for a in articles if a.get("link") and a["link"] not in old_links
-        ]
-
-        # 成功与失败都记录抓取时间（失败保留旧文章）
-        await asyncio.to_thread(rss_manager.update_source, source.id, articles)
-
-        for article in new_articles[:3]:
-            rss_broadcaster.publish(
-                {
-                    "type": "rss",
-                    "article": {
-                        "source_id": source.id,
-                        "source_name": source.name,
-                        "url": source.url,
-                        "title": article.get("title", ""),
-                        "link": article.get("link", ""),
-                        "pubDate": article.get("pubDate", ""),
-                        "description": article.get("description", ""),
-                    },
-                }
-            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -129,35 +69,9 @@ async def lifespan(app: FastAPI):
     alert_broadcaster: EventBroadcaster = app.state.alert_broadcaster
     rss_broadcaster: EventBroadcaster = app.state.rss_broadcaster
 
-    async def alert_checker():
-        """后台告警检查任务，按 ALERT_CHECK_INTERVAL 间隔执行"""
-        while True:
-            try:
-                await asyncio.sleep(ALERT_CHECK_INTERVAL)
-
-                trends = await asyncio.to_thread(get_trends, check_alerts=True)
-                for alert_event in trends.get("new_alerts", []):
-                    alert_broadcaster.publish({"type": "alert", "event": alert_event})
-
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logger.exception("告警检查异常")
-
-    async def rss_checker():
-        """后台RSS抓取任务，按 RSS_CHECK_INTERVAL 间隔执行"""
-        while True:
-            try:
-                await asyncio.sleep(RSS_CHECK_INTERVAL)
-                await check_rss_sources(rss_broadcaster)
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logger.exception("RSS 抓取异常")
-
     background_tasks = [
-        asyncio.create_task(alert_checker()),
-        asyncio.create_task(rss_checker()),
+        asyncio.create_task(alert_checker(alert_broadcaster)),
+        asyncio.create_task(rss_checker(rss_broadcaster)),
     ]
 
     yield
@@ -226,8 +140,12 @@ app.mount("/static", _NoCacheStaticFiles(directory=str(STATIC_DIR)), name="stati
 
 # 注册API路由
 app.include_router(chat_router)
+app.include_router(session_router)
+app.include_router(history_router)
 app.include_router(meta_router)
 app.include_router(intelligence_router)
+app.include_router(alert_router)
+app.include_router(rss_router)
 
 
 @app.get("/")

@@ -9,7 +9,7 @@ Meta API - 技能与工具路由
 from fastapi import APIRouter
 
 from agent_set.skill_set import load_skill
-from agent_set.tools_set import tools
+from agent_set.tools import tools
 
 router = APIRouter()
 
