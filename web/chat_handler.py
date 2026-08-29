@@ -19,10 +19,6 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage
 
 from agent_set import agent_set  # Agent模块
-from execution_display import (
-    print_execution_stats,
-    print_execution_steps,
-)  # 执行显示模块
 from web.chat_history_store import load_thread
 
 logger = logging.getLogger(__name__)
@@ -149,11 +145,6 @@ class ChatHandler:
         self.message_history[thread_id] = list(result["messages"])
 
         details = self._extract_details(result["messages"])
-
-        # 打印执行步骤和统计信息
-        if verbose:
-            print_execution_steps(result["messages"], 1)
-            print_execution_stats(details)
 
         return self._final_response(result["messages"]), details
 

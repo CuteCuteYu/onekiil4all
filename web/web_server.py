@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 # 确保项目根目录在 sys.path 中（热重载 multiprocessing spawn 时
-# 可能丢失 cwd，导致 execution_display 等顶层模块找不到）
+# 可能丢失 cwd，导致顶层模块找不到）
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))

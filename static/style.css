@@ -297,6 +297,25 @@ html, body {
   color: var(--fg);           /* 悬停变亮 */
 }
 
+/**
+ * 历史记录删除按钮（history.js 实际使用的类名）
+ * 透明背景 + 白字，与深色主题和谐
+ */
+.history-delete {
+  float: right;               /* 右浮动 */
+  background: transparent;    /* 透明背景 */
+  border: none;               /* 无边框 */
+  color: var(--fg-muted);     /* 弱化白字 */
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 5px;
+  transition: color .2s;
+}
+.history-delete:hover {
+  color: var(--fg);           /* 悬停变亮 */
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    主内容区域
