@@ -30,6 +30,7 @@ const $btnClearAlertHistory = document.getElementById('btn-clear-alert-history')
 const $btnSearchLinks = document.getElementById('btn-search-links');
 const $linkKeywordInput = document.getElementById('link-keyword-input');
 const $linkResults = document.getElementById('link-results');
+const $btnClearLinks = document.getElementById('btn-clear-links');
 const $rssInput = document.getElementById('rss-input');
 const $btnAddRss = document.getElementById('btn-add-rss');
 const $rssSources = document.getElementById('rss-sources');

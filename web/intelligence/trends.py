@@ -495,30 +495,215 @@ def get_trends(check_alerts: bool = False) -> dict:
     return trends_data
 
 
-def get_keyword_associations(keyword: str) -> dict:
-    """
-    获取指定关键词的关联分析
+# 关联分析用停用词与噪音过滤
+# 英文停用词(无信息量,常见于英文标题)
+_EN_STOPWORDS = {
+    'the', 'and', 'for', 'with', 'from', 'this', 'that', 'are', 'was',
+    'were', 'you', 'your', 'not', 'but', 'what', 'why', 'how', 'when',
+    'where', 'who', 'which', 'into', 'than', 'then', 'them', 'they',
+    'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should',
+    'new', 'via', 'its', 'all', 'any', 'one', 'top', 'best', 'get',
+    'make', 'made', 'using', 'use', 'used', 'app', 'apps', 'about',
+    'after', 'before', 'over', 'under', 'also', 'been', 'being',
+    'more', 'most', 'much', 'many', 'some', 'such', 'only', 'very',
+}
 
-    参数:
-        keyword: 用户输入的关键词
+# 关联分析结果缓存(keyword -> (时间戳, 结果)) —— 搜索 + LLM 调用较贵, 缓存 60 秒
+_ASSOC_CACHE_TTL = 60.0
+_assoc_cache: dict[str, tuple[float, dict]] = {}
+_assoc_lock = threading.Lock()
+
+
+def _chinese_bigrams(text: str) -> list[str]:
+    """
+    中文 2 字相邻组合(bigram), 仅用于热点回退链路的标题匹配
+
+    生成中文长词的短变体, 使"人工智能"能匹配仅含"智能"的标题
+    """
+    bigrams: list[str] = []
+    for chunk in re.findall(r"[\u4e00-\u9fff]+", text):
+        if len(chunk) < 2:
+            continue
+        for i in range(len(chunk) - 1):
+            bigrams.append(chunk[i : i + 2])
+    return bigrams
+
+
+def _keyword_units(keyword: str) -> set[str]:
+    """
+    将关键词拆成匹配单元(完整小写词 + 中文 bigram), 用于热点回退链路
+    """
+    units: set[str] = set()
+    kw = keyword.strip().lower()
+    if kw:
+        units.add(kw)
+    units.update(_chinese_bigrams(keyword))
+    return units
+
+
+def _web_search_titles(query: str, limit: int = 15) -> list[str]:
+    """
+    搜索与关键词相关的网页标题(先 DuckDuckGo, 失败回退 Bing HTML)
 
     返回:
-        包含关联词条和得分的字典
+        清洗后的标题列表(最多 limit 条), 两种源都失败返回空列表
     """
-    if not keyword or len(keyword.strip()) < 2:
-        return {"keyword": keyword, "associations": []}
+    titles = _search_ddg_titles(query, limit)
+    if titles:
+        return titles
+    return _search_bing_titles(query, limit)
 
-    keyword = keyword.strip().lower()
-    keyword_lower = keyword
 
+def _search_ddg_titles(query: str, limit: int) -> list[str]:
+    """使用 DuckDuckGo 搜索(项目依赖 ddgs)获取网页标题"""
+    try:
+        from ddgs import DDGS
+
+        with DDGS() as client:
+            results = client.text(query, max_results=limit)
+        titles = [r.get("title", "").strip() for r in results if r.get("title")]
+        return titles[:limit]
+    except Exception as e:  # noqa: BLE001 - 搜索源兜底
+        logger.debug("DuckDuckGo 搜索失败: %s", e)
+        return []
+
+
+def _search_bing_titles(query: str, limit: int) -> list[str]:
+    """回退: 直接抓取 Bing 搜索结果页并解析结果标题"""
+    try:
+        url = (
+            "https://www.bing.com/search?q="
+            + urllib.parse.quote(query)
+            + "&count="
+            + str(limit)
+        )
+        res = requests.get(url, headers=_HEADERS, timeout=8)
+        res.raise_for_status()
+        titles = []
+        pattern = r'<li class="b_algo".*?<h2[^>]*>.*?<a[^>]*>(.*?)</a>'
+        for m in re.finditer(pattern, res.text, re.S):
+            title = _strip_html(m.group(1))
+            if title:
+                titles.append(title)
+            if len(titles) >= limit:
+                break
+        return titles
+    except Exception as e:  # noqa: BLE001 - 搜索源兜底
+        logger.debug("Bing 搜索失败: %s", e)
+        return []
+
+
+def _build_association_prompt(keyword: str, titles: list[str]) -> str:
+    """构建提交给 LLM 的关键词总结提示词"""
+    numbered = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(titles))
+    return f"""你是关键词分析助手。用户搜索的主题是："{keyword}"。
+以下是从搜索引擎抓取到的相关网页标题（一行一条）：
+
+{numbered}
+
+请分析这些标题，提炼 5~12 个与主题高度相关的关键词，要求：
+1. 关键词应覆盖标题中的核心概念（中文/英文均可，优先品牌名、产品名、技术名词、实体名）
+2. 不要包含搜索词本身
+3. 按相关度从高到低排列
+只返回 JSON 数组（不要 Markdown 代码块、不要任何解释），例如：["关键词1","关键词2"]"""
+
+
+def _parse_keywords_from_llm(text: str) -> list[str]:
+    """
+    解析 LLM 返回的关键词列表(容错 Markdown 代码块/前后杂文)
+
+    参数:
+        text: LLM 原始输出
+
+    返回:
+        关键词字符串列表, 无法解析时返回空列表
+    """
+    t = (text or "").strip()
+    if not t:
+        return []
+    # 剥离 Markdown 代码块围栏
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\s*", "", t)
+        t = re.sub(r"\s*```$", "", t)
+    match = re.search(r"\[[\s\S]*\]", t)
+    if not match:
+        return []
+    # 整体优先: 文本本身是 JSON 数组或 {"keywords": [...]} 对象
+    whole = None
+    try:
+        whole = json.loads(t)
+    except ValueError:
+        pass  # 文本是带杂文的输出, 走下面的数组字面量提取
+
+    if isinstance(whole, list):
+        data = whole
+    elif isinstance(whole, dict):
+        # 对象格式: 仅接受带 keywords 列表的字典, 避免误取无关字段
+        data = whole.get("keywords")
+        if not isinstance(data, list):
+            return []
+    else:
+        # 杂文输出: 提取其中的第一个数组字面量
+        match = re.search(r"\[[\s\S]*\]", t)
+        if not match:
+            return []
+        try:
+            data = json.loads(match.group(0))
+        except ValueError:
+            return []
+        if not isinstance(data, list):
+            return []
+    return [str(k).strip() for k in data if k is not None and str(k).strip()]
+
+
+def _rank_score(index: int) -> float:
+    """按排名生成递减相关度分数(首位 1.0, 最低 0.25)"""
+    return round(max(1.0 - index * 0.08, 0.25), 2)
+
+
+def _associations_via_search(keyword: str) -> list[dict]:
+    """
+    主链路: 网络搜索网页标题 → 项目 AI 模型总结关键词(中英文均可)
+
+    任何环节失败(搜索无结果/LLM 异常/解析失败)均返回空列表, 由调用方回退
+    """
+    try:
+        titles = _web_search_titles(keyword, limit=15)
+        if not titles:
+            return []
+
+        # 延迟导入: 测试/无凭据环境下不会初始化模型
+        from model_set import model_set
+
+        prompt = _build_association_prompt(keyword, titles)
+        result = model_set.model.invoke(prompt, max_tokens=200)
+        content = getattr(result, "content", "")
+        if isinstance(content, list):
+            content = "".join(
+                b.get("text", "")
+                for b in content
+                if isinstance(b, dict) and b.get("text")
+            )
+        words = _parse_keywords_from_llm(str(content))
+    except Exception as e:  # noqa: BLE001 - 主链路兜底
+        logger.debug("AI 关联分析失败: %s", e)
+        return []
+
+    return [{"keyword": w, "score": _rank_score(i)} for i, w in enumerate(words)]
+
+
+def _associations_from_trends(keyword: str) -> list[dict]:
+    """
+    回退链路: 基于内置热点数据提取英文关联词
+
+    搜索或 AI 不可用时保证功能不中断(原逻辑)
+    """
     trends = get_trends()
 
     titles = []
-
     for item in trends.get("hot_search", []):
         if item.get("word"):
             titles.append(item["word"])
-
     for item in trends.get("github", []):
         name = item.get("name", "")
         desc = item.get("description", "")
@@ -526,54 +711,84 @@ def get_keyword_associations(keyword: str) -> dict:
             titles.append(name)
         if desc:
             titles.append(desc)
-
     for item in trends.get("tech_news", []):
         if item.get("title"):
             titles.append(item["title"])
 
-    co_occur = {}
+    match_units = _keyword_units(keyword)
+    cache_key = keyword.lower()
+    co_occur: dict[str, int] = {}
 
     for title in titles:
         title_lower = title.lower()
-
-        if keyword_lower not in title_lower:
+        if not any(unit in title_lower for unit in match_units):
             continue
+        for word in set(extract_keywords(title)):
+            if word == cache_key or word in match_units:
+                continue
+            co_occur[word] = co_occur.get(word, 0) + 1
 
-        words = extract_keywords(title)
+    associations = [
+        {"keyword": word, "score": round(min(count * 0.25, 1.0), 2)}
+        for word, count in co_occur.items()
+    ]
+    associations.sort(key=lambda x: (x["score"], x["keyword"]), reverse=True)
+    return associations[:15]
 
-        for word in words:
-            if word != keyword and len(word) >= 2:
-                if word not in co_occur:
-                    co_occur[word] = 0
-                co_occur[word] += 1
 
-    associations = []
-    for word, count in co_occur.items():
-        score = min(count / 5, 1.0)
-        associations.append({"keyword": word, "score": round(score, 2)})
+def get_keyword_associations(keyword: str) -> dict:
+    """
+    获取指定关键词的关联分析
 
-    associations.sort(key=lambda x: x["score"], reverse=True)
+    主链路: 搜索相关网页标题 → 项目 AI 模型总结关键词(中英文均可);
+    失败时回退: 内置热点数据的英文关联词。
+    结果按 60 秒缓存(搜索 + LLM 调用较贵)。
 
-    return {
+    返回:
+        {"keyword", "total", "associations": [{keyword, score}]}
+    """
+    if not keyword or len(keyword.strip()) < 2:
+        return {"keyword": keyword, "total": 0, "associations": []}
+
+    keyword = keyword.strip()
+    cache_key = keyword.lower()
+
+    with _assoc_lock:
+        cached = _assoc_cache.get(cache_key)
+        if cached and time.monotonic() - cached[0] < _ASSOC_CACHE_TTL:
+            return copy.deepcopy(cached[1])
+
+    associations = _associations_via_search(keyword)
+    if not associations:
+        associations = _associations_from_trends(keyword)
+
+    result = {
         "keyword": keyword,
+        "total": len(associations),
         "associations": associations[:15],
     }
 
+    with _assoc_lock:
+        _assoc_cache[cache_key] = (time.monotonic(), result)
+        if len(_assoc_cache) > 200:  # 简单防膨胀
+            _assoc_cache.clear()
+
+    return copy.deepcopy(result)
+
 
 def extract_keywords(text: str) -> list:
-    """从文本中提取关键词"""
-    chinese = re.findall(r"[\u4e00-\u9fff]+", text)
-    english = re.findall(r"[a-zA-Z]{3,}", text)
+    """
+    从文本中提取关联词(英文优先策略)
 
+    仅提取 3 个及以上字母的英文单词(小写), 过滤无信息量的英文停用词。
+    中文内容不产出关联词(bigram 碎片噪音大), 仅通过 _chinese_bigrams
+    参与标题匹配, 保证中文关键词仍能找到相关英文实词。
+    """
     keywords = []
-
-    for word in chinese:
-        if len(word) >= 2:
-            for i in range(len(word) - 1):
-                keywords.append(word[i : i + 2])
-
-    keywords.extend([w.lower() for w in english])
-
+    for word in re.findall(r"[a-zA-Z]{3,}", text):
+        w = word.lower()
+        if w not in _EN_STOPWORDS:
+            keywords.append(w)
     return keywords
 
 

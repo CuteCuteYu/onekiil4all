@@ -130,10 +130,12 @@ The system includes multiple built-in tools:
 
 ### 6. Keyword Association Analysis
 
-- **Association Search**: Enter keywords in LINKS tab to analyze associations
-- **Smart Analysis**: Analyzes related keywords from current trending data
-- **One-click Alert**: Click any association keyword to add to ALERTS
-- **Relevance Score**: Shows relevance percentage for each associated keyword
+- **Association Search**: Enter any keyword (Chinese or English) in LINKS tab
+- **Web Search + AI Summary**: fetches related web page titles via search engines (DuckDuckGo / Bing), then the project AI model summarizes 5-12 highly relevant keywords (brands/products/entities, mixed Chinese/English)
+- **Smart Fallback**: automatically falls back to built-in trending analysis when search or model is unavailable
+- **Result Caching**: repeated searches for the same keyword hit a 60s cache
+- **One-click Alert**: click any associated keyword to add it to ALERTS (duplicates show "already exists"; the new rule is highlighted on success)
+- **Relevance Score**: percentage based on the AI-ranked relevance order
 
 ### 7. RSS Subscription
 

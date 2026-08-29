@@ -1614,6 +1614,41 @@ html, body {
 }
 
 /**
+ * 关联结果统计行与 CLEAR 按钮
+ */
+.link-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 9px;
+  color: var(--fg-muted);
+  letter-spacing: 0.03em;
+}
+
+.link-summary-hint {
+  color: var(--fg-dim);
+  font-size: 8px;
+}
+
+.btn-clear-link {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--fg-dim);
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 7px 8px;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.btn-clear-link:hover {
+  color: var(--fg);
+  border-color: var(--fg-muted);
+}
+
+/**
  * 趋势列表
  */
 .trends-list {

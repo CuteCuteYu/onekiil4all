@@ -195,6 +195,13 @@ def get_or_create_session(thread_id: str | None) -> dict:
 - **Cross-tab sync**: create/delete/toggle endpoints publish `{"type": "alert_updated"}`; frontends refresh the rule list on receipt.
 - **Frontend conventions in `alerts.js`**: unread badge on the ALERTS tab (cleared when the tab is opened), new alerts are prepended to the history locally with a throttled (5s) full re-sync, and SSE reconnect (`onopen` after the first open) re-fetches rules + history to compensate missed events.
 - **JS pitfall**: never put a line break right after `return` before the expression (ASI inserts a semicolon and the function silently returns `undefined`). Use `return ( ... );`. This bug once made the alert rule list render empty.
+### Links / Association Analysis Notes (see `web/intelligence/trends.py`, `static/intelligence/links.js`)
+
+- **Pipeline**: keyword → web search titles (`_web_search_titles`: DDGS first, Bing HTML fallback) → project LLM summarizes 5-12 keywords (`_associations_via_search`) → ranked scores via `_rank_score`.
+- **LLM output parsing**: `_parse_keywords_from_llm` tries whole-text JSON first (list or `{"keywords": [...]}` object; other dict shapes are rejected), then extracts the first array literal from prose. Never accept arbitrary arrays inside non-keywords dicts.
+- **Caching**: per-keyword 60s cache (`_assoc_cache`, locked); search + LLM calls are expensive.
+- **Fallback**: if search returns nothing or LLM/parse fails, `_associations_from_trends` falls back to built-in trending data using Chinese-bigram matching units (`_chinese_bigrams` / `extract_keywords`) with English stopword filtering.
+- **Frontend**: clicking a result keyword POSTs to /api/alerts with duplicate-alert feedback; on success it switches to ALERTS and highlights the new rule via `highlightAlertItem`; load text is "正在搜索并分析相关关键词...".
 ---
 ## Notes
 

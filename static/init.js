@@ -101,6 +101,11 @@ if ($linkKeywordInput) {
   });
 }
 
+// 清空关联搜索结果
+if ($btnClearLinks) {
+  $btnClearLinks.addEventListener('click', clearLinkResults);
+}
+
 // 监听窗口大小变化
 window.addEventListener('resize', () => {});
 

@@ -172,3 +172,58 @@ def test_item_limit():
     payload = {"data": {"realtime": [{"word": f"词{i}", "num": i} for i in range(30)]}}
     items = parse_weibo(json.dumps(payload))
     assert len(items) == 15
+
+def test_extract_keywords_filters_english_stopwords():
+    from web.intelligence.trends import extract_keywords
+
+    words = extract_keywords("ChatGPT and the new AI era")
+    assert "the" not in words
+    assert "and" not in words
+    assert "new" not in words
+    assert "chatgpt" in words
+    assert "era" in words
+
+
+def test_extract_keywords_english_only():
+    from web.intelligence.trends import extract_keywords
+
+    # 中文不产出关联词(英文优先策略)
+    assert extract_keywords("人工智能赋能电商发展") == []
+
+    # 英文实词照常提取
+    words = extract_keywords("ChatGPT and the new AI era")
+    assert "chatgpt" in words
+    assert "era" in words
+
+
+def test_chinese_bigrams_for_matching_only():
+    from web.intelligence.trends import _chinese_bigrams, _keyword_units
+
+    # bigram 仅用于匹配:中文长词拆出短变体
+    assert "智能" in _chinese_bigrams("人工智能")
+    assert "电商" in _chinese_bigrams("人工智能赋能电商发展")
+
+    # 匹配单元组合:完整词 + 中文 bigram
+    units = _keyword_units("人工智能")
+    assert "人工智能" in units
+    assert "智能" in units
+    assert "ai" in _keyword_units("AI")
+
+def test_parse_keywords_from_llm_various_formats():
+    from web.intelligence.trends import _parse_keywords_from_llm
+
+    # 裸数组
+    assert _parse_keywords_from_llm('["AI","芯片","开源"]') == ["AI", "芯片", "开源"]
+    # Markdown 代码块(带换行)
+    assert _parse_keywords_from_llm('```json\n["a","b"]\n```') == ["a", "b"]
+    # 前后杂文
+    assert _parse_keywords_from_llm('分析结果如下: ["x", "y"] 完毕') == ["x", "y"]
+    # 混合类型: null/数字处理, None 丢弃
+    assert _parse_keywords_from_llm('["a", 123, null, "b"]') == ["a", "123", "b"]
+    # 无法解析
+    assert _parse_keywords_from_llm("") == []
+    assert _parse_keywords_from_llm("抱歉,我无法分析") == []
+    # 对象格式 {"keywords": [...]} 兼容提取
+    assert _parse_keywords_from_llm('{"keywords": ["a"]}') == ["a"]
+    # 对象无 keywords 字段
+    assert _parse_keywords_from_llm('{"items": ["a"]}') == []
