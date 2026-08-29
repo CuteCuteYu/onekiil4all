@@ -70,7 +70,7 @@ async def api_create_alert(request: Request):
     """创建新的告警规则"""
     try:
         body = await request.json()
-    except Exception:
+    except Exception:  # noqa: BLE001 - 非法 JSON 统一按 400 处理
         raise HTTPException(status_code=400, detail="请求体不是合法 JSON")
     keyword = body.get("keyword", "").strip()
     if not keyword:

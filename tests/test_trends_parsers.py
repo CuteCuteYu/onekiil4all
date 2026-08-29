@@ -184,16 +184,42 @@ def test_extract_keywords_filters_english_stopwords():
     assert "era" in words
 
 
-def test_extract_keywords_english_only():
+def test_extract_keywords_chinese_and_english():
     from web.intelligence.trends import extract_keywords
 
-    # 中文不产出关联词(英文优先策略)
-    assert extract_keywords("人工智能赋能电商发展") == []
+    # 中文产出关联词(修复: 回退链路对中文关键词返回空)
+    words = extract_keywords("人工智能赋能电商发展")
+    assert "人工智能" in words
+    assert "电商" in words
 
     # 英文实词照常提取
     words = extract_keywords("ChatGPT and the new AI era")
     assert "chatgpt" in words
     assert "era" in words
+
+
+def test_associations_from_titles_extracts_chinese_and_english():
+    from web.intelligence.trends import _associations_from_titles
+
+    titles = [
+        "伊朗 - 维基百科，自由的百科全书",
+        "伊朗戰爭 (2026年) - 维基百科",
+        "伊朗伊斯兰共和国 | OHCHR",
+        "Iran - Wikipedia",
+    ]
+    assoc = _associations_from_titles("伊朗", titles)
+    keywords = [a["keyword"] for a in assoc]
+
+    # 中文关联词被提取
+    assert "维基百科" in keywords
+    assert "戰爭" in keywords
+    # 关键词本身被过滤(含关键词的复合词也被过滤)
+    assert "伊朗" not in keywords
+    assert "伊朗伊斯兰共和国" not in keywords
+    # 返回按分数排序
+    assert assoc == sorted(
+        assoc, key=lambda x: (x["score"], x["keyword"]), reverse=True
+    )
 
 
 def test_chinese_bigrams_for_matching_only():

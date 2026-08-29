@@ -15,6 +15,7 @@ AI Intelligent Assistant - Built with LangChain + Anthropic-compatible models
 
 - **Backend**: Python 3.11+, FastAPI, **LangChain**, LangGraph
 - **AI Model**: Anthropic-compatible API (reads `ANTHROPIC_*` env vars by default)
+- **Chinese Segmentation**: jieba (Chinese keyword extraction for association analysis)
 - **Frontend**: Native HTML/CSS/JavaScript
 - **Architecture**: Agent architecture with tool calling and auto-iteration
 - **Reference**: LangChain, DeepAgents
@@ -132,7 +133,10 @@ The system includes multiple built-in tools:
 
 - **Association Search**: Enter any keyword (Chinese or English) in LINKS tab
 - **Web Search + AI Summary**: fetches related web page titles via search engines (DuckDuckGo / Bing), then the project AI model summarizes 5-12 highly relevant keywords (brands/products/entities, mixed Chinese/English)
-- **Smart Fallback**: automatically falls back to built-in trending analysis when search or model is unavailable
+- **Two-level Smart Fallback**:
+  1. If the AI model call fails (content-moderation rejection, rate limit, timeout), keywords are extracted directly from the already-fetched search titles (jieba Chinese segmentation + English words, stopword-filtered) — keeps person/place names (e.g. Iran, Trump) working even when the model refuses to answer
+  2. If search itself returns nothing, falls back to built-in trending data analysis (both Chinese and English keywords), keeping the feature available
+- **Chinese Keyword Support**: jieba segmentation extracts Chinese keywords with Chinese stopword filtering; Chinese keywords no longer return empty results
 - **Result Caching**: repeated searches for the same keyword hit a 60s cache
 - **One-click Alert**: click any associated keyword to add it to ALERTS (duplicates show "already exists"; the new rule is highlighted on success)
 - **Relevance Score**: percentage based on the AI-ranked relevance order
