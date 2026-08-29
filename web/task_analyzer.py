@@ -6,31 +6,35 @@ Task Analyzer - 任务分析模块
  作者: CuteCuteYu
 """
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 # 导入标准库和项目模块
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 
+import ast
+import logging
 import time
-from typing import Optional
+
 from web.conversation import get_todo_manager
 
-# ═══════════════════════════════════════════════════════════════
+logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════════════
 # 任务状态缓存
 # 用于缓存最近的任务状态检查结果，避免重复调用AI
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 
 _task_cache = {}  # 缓存字典
 _CACHE_TIMEOUT = 30  # 缓存超时时间（秒）
 
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 # 核心函数
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 
 
 def check_task_completed(
     response: str, user_request: str, last_action: str = ""
-) -> tuple[bool, str, bool]:
+) -> tuple[bool, str]:
     """
     高效检查任务是否已完成，调用AI更新TODO状态
 
@@ -42,22 +46,20 @@ def check_task_completed(
         last_action: 最后执行的操作
 
     返回:
-        tuple: (是否完成, 下一步指令或解释, 是否被用户打断)
+        tuple: (是否完成, 下一步指令或解释)
     """
-    print("\n[正在判断是否继续执行中...] (按 ESC 打断)")
+    logger.info("正在判断是否继续执行中...")
 
     # 获取TODO管理器
     todo_mgr = get_todo_manager()
-    tasks, todo_content = todo_mgr.read_todo()
+    tasks, _todo_content = todo_mgr.read_todo()
 
-    # 调试信息
-    print(f"[调试] TODO 文件存在: {todo_mgr.exists()}")
-    print(f"[调试] 读取的任务数: {len(tasks)}")
+    logger.debug("TODO 文件存在: %s, 读取的任务数: %d", todo_mgr.exists(), len(tasks))
 
     # 如果没有TODO，默认任务已完成
     if not todo_mgr.exists() or not tasks:
-        print("[检查] 无 TODO 任务，默认已完成")
-        return True, "", False
+        logger.debug("无 TODO 任务，默认已完成")
+        return True, ""
 
     # 检查缓存（避免重复调用AI）
     cache_key = f"{todo_mgr.thread_id}:{hash(response[:100])}:{hash(last_action)}"
@@ -66,11 +68,11 @@ def check_task_completed(
     if cache_key in _task_cache:
         cache_time, cached_result = _task_cache[cache_key]
         if current_time - cache_time < _CACHE_TIMEOUT:
-            print("[检查] 使用缓存结果")
+            logger.debug("使用缓存结果")
             return cached_result
 
     # 调用AI更新TODO状态
-    print("[检查] 正在分析任务完成状态...")
+    logger.info("正在分析任务完成状态...")
 
     try:
         # 使用高效的提示词，让AI快速判断
@@ -83,17 +85,17 @@ def check_task_completed(
 
         # 调试：打印任务状态
         completed_count = sum(1 for t in updated_tasks if t.get("completed", False))
-        print(f"[调试] 完成任务: {completed_count}/{len(updated_tasks)}")
+        logger.debug("完成任务: %d/%d", completed_count, len(updated_tasks))
 
         # 生成下一步指令（如果需要）
         next_action = ""
         if not all_completed:
             next_action = _generate_next_action(updated_tasks, response, user_request)
-            print(f"[检查] 下一步: {next_action[:80] if next_action else '(无)'}...")
+            logger.info("下一步: %s", next_action[:80] if next_action else "(无)")
         else:
-            print("[检查] 所有任务已完成")
+            logger.info("所有任务已完成")
 
-        result = (all_completed, next_action, False)
+        result = (all_completed, next_action)
 
         # 缓存结果
         _task_cache[cache_key] = (current_time, result)
@@ -103,8 +105,8 @@ def check_task_completed(
 
         return result
 
-    except Exception as e:
-        print(f"[检查] AI 分析失败，使用简化检查: {e}")
+    except Exception as e:  # noqa: BLE001 - 兜底回退，保证任务循环不中断
+        logger.warning("AI 分析失败，使用简化检查: %s", e)
         # 失败时回退到简化检查
         return _fallback_check(todo_mgr, tasks)
 
@@ -161,13 +163,13 @@ AI最新响应摘要：{response[:300]}
         content = result.content.strip()
 
         # 解析结果
-        completed_indices = []
+        completed_indices: list[int] = []
         if content.startswith("[") and content.endswith("]"):
-            import ast
-
             try:
-                completed_indices = ast.literal_eval(content)
-            except:
+                parsed = ast.literal_eval(content)
+                if isinstance(parsed, list):
+                    completed_indices = parsed
+            except (ValueError, SyntaxError):
                 completed_indices = []
 
         # 更新任务状态
@@ -177,15 +179,15 @@ AI最新响应摘要：{response[:300]}
                 task["completed"] = True
 
         # 保存更新
-        todo_mgr._save_todo_md(tasks)
+        todo_mgr.save_todo(tasks)
 
         # 检查是否全部完成
         all_completed = all(t.get("completed", False) for t in tasks)
 
         return tasks, all_completed
 
-    except Exception as e:
-        print(f"[更新] 快速更新失败: {e}")
+    except Exception as e:  # noqa: BLE001 - 兜底回退到标准更新路径
+        logger.warning("快速更新失败，回退到标准更新: %s", e)
         # 回退到标准更新方法
         return todo_mgr.update_todo(response, last_action)
 
@@ -213,7 +215,7 @@ def _generate_next_action(tasks: list[dict], response: str, user_request: str) -
     return ""
 
 
-def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str, bool]:
+def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str]:
     """
     简化检查（回退方案）
 
@@ -224,7 +226,7 @@ def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str, bool]:
         tasks: 任务列表
 
     返回:
-        tuple: (是否完成, 下一步指令, 是否中断)
+        tuple: (是否完成, 下一步指令)
     """
     todo_mgr.display_todo("当前任务清单")
 
@@ -232,11 +234,10 @@ def _fallback_check(todo_mgr, tasks: list[dict]) -> tuple[bool, str, bool]:
     has_uncompleted = any(not t.get("completed", False) for t in tasks)
 
     if has_uncompleted:
-        print("[检查] 检测到未完成任务，等待用户确认")
-        return False, "", False
-    else:
-        print("[检查] 所有任务标记为已完成")
-        return True, "", False
+        logger.info("检测到未完成任务，等待用户确认")
+        return False, ""
+    logger.info("所有任务标记为已完成")
+    return True, ""
 
 
 def _clean_old_cache(current_time: float):
@@ -248,7 +249,6 @@ def _clean_old_cache(current_time: float):
     参数:
         current_time: 当前时间戳
     """
-    global _task_cache
     expired_keys = [
         key
         for key, (cache_time, _) in _task_cache.items()
@@ -257,4 +257,4 @@ def _clean_old_cache(current_time: float):
     for key in expired_keys:
         del _task_cache[key]
     if expired_keys:
-        print(f"[缓存] 清理了 {len(expired_keys)} 个过期缓存")
+        logger.debug("清理了 %d 个过期缓存", len(expired_keys))

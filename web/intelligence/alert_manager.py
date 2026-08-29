@@ -7,12 +7,15 @@ Alert Manager - 告警管理模块
 """
 
 import json
+import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from web.paths import DATA_DIR
+
+logger = logging.getLogger(__name__)
+
 ALERTS_FILE = DATA_DIR / "alerts.json"
 HISTORY_FILE = DATA_DIR / "alert_history.json"
 
@@ -102,7 +105,16 @@ class AlertEvent:
 class AlertManager:
     """告警管理器"""
 
-    def __init__(self):
+    def __init__(self, data_dir: Path | None = None):
+        """
+        初始化告警管理器
+
+        参数:
+            data_dir: 数据目录，默认使用项目根目录 data/（测试时可注入临时目录）
+        """
+        self.data_dir = data_dir or DATA_DIR
+        self.alerts_file = self.data_dir / "alerts.json"
+        self.history_file = self.data_dir / "alert_history.json"
         self.alerts: list[Alert] = []
         self.history: list[AlertEvent] = []
         self._processed_urls: set[tuple[str, str]] = set()
@@ -110,20 +122,21 @@ class AlertManager:
 
     def _load(self):
         """加载告警配置和历史"""
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        if ALERTS_FILE.exists():
+        if self.alerts_file.exists():
             try:
-                with open(ALERTS_FILE, "r", encoding="utf-8") as f:
+                with open(self.alerts_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     alerts_list = data.get("alerts", [])
                     self.alerts = [Alert.from_dict(a) for a in alerts_list]
             except Exception:
+                logger.warning("告警配置读取失败，已重置", exc_info=True)
                 self.alerts = []
 
-        if HISTORY_FILE.exists():
+        if self.history_file.exists():
             try:
-                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                with open(self.history_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     history_list = data.get("history", [])
                     self.history = [AlertEvent.from_dict(h) for h in history_list]
@@ -131,20 +144,21 @@ class AlertManager:
                         (h.url, h.keyword) for h in self.history if h.url and h.keyword
                     }
             except Exception:
+                logger.warning("告警历史读取失败，已重置", exc_info=True)
                 self.history = []
 
     def save_alerts(self):
         """保存告警配置"""
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         data = {"alerts": [a.to_dict() for a in self.alerts]}
-        with open(ALERTS_FILE, "w", encoding="utf-8") as f:
+        with open(self.alerts_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def save_history(self):
         """保存告警历史"""
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         data = {"history": [h.to_dict() for h in self.history]}
-        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        with open(self.history_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def add_alert(self, keyword: str) -> Alert:
@@ -160,7 +174,7 @@ class AlertManager:
         alert = Alert(
             id=f"alert_{uuid.uuid4().hex[:8]}",
             keyword=keyword,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             enabled=True,
         )
         self.alerts.append(alert)
@@ -232,10 +246,10 @@ class AlertManager:
         return new_events
 
     def _check_keyword_match(self, keyword: str, text: str) -> bool:
-        """检查关键词是否匹配"""
+        """检查关键词是否匹配（两侧统一小写）"""
         if not text:
             return False
-        return keyword in text.lower()
+        return keyword.lower() in text.lower()
 
     def _create_event(
         self, alert: Alert, item: dict, event_type: str
@@ -258,7 +272,7 @@ class AlertManager:
             title=title,
             source=source,
             url=url,
-            triggered_at=datetime.now().isoformat(),
+            triggered_at=datetime.now(UTC).isoformat(),
             event_type=event_type,
         )
 

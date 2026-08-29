@@ -43,7 +43,7 @@ function renderTodoList(tasks, completedCount, totalCount) {
   $todoContent.querySelectorAll('.todo-item input').forEach(checkbox => {
     checkbox.addEventListener('change', (e) => {
       const index = parseInt(e.target.dataset.index);
-      task.completed = e.target.checked;
+      tasks[index].completed = e.target.checked;
       renderTodoList(tasks, tasks.filter(t => t.completed).length, tasks.length);
     });
   });

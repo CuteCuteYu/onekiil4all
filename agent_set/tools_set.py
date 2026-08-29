@@ -13,17 +13,15 @@ Tools Set - 工具集模块
 
 import subprocess  # 执行系统命令
 from pathlib import Path  # 路径处理
-import urllib.request  # 网络请求
-import urllib.error  # 网络错误处理
-import xml.etree.ElementTree as ET  # XML解析
 
-# ═══════════════════════════════════════════════════════════════
-# 导入LangChain工具
-# ═══════════════════════════════════════════════════════════════
-
-from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
 
+# ═══════════════════════════════════════════════════════════════════════
+# 导入LangChain工具和项目内部模块
+# ═══════════════════════════════════════════════════════════════════════
+from langchain_core.tools import tool
+
+from web.intelligence.rss_parser import fetch_rss_articles
 
 # ═══════════════════════════════════════════════════════════════
 # 初始化搜索工具
@@ -52,7 +50,7 @@ def web_search(query: str) -> str:
     try:
         result = search.run(query)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - 工具约定：任何失败都以错误字符串返回
         return f"[Error] 搜索失败: {e}"
 
 
@@ -73,6 +71,7 @@ def run_powershell(command: str) -> str:
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     output = result.stdout.strip()
     if result.returncode != 0:
@@ -125,7 +124,7 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
         return f"[Error] 文件不存在: {filepath}"
     except UnicodeDecodeError:
         return f"[Error] 无法使用编码 {encoding} 解码文件，可能是二进制文件或编码不匹配"
-    except Exception as e:
+    except OSError as e:
         return f"[Error] 读取文件失败: {e}"
 
 
@@ -185,7 +184,7 @@ def read_binary_file(
         return header + "\n".join(lines)
     except FileNotFoundError:
         return f"[Error] 文件不存在: {filepath}"
-    except Exception as e:
+    except OSError as e:
         return f"[Error] 读取文件失败: {e}"
 
 
@@ -202,108 +201,14 @@ def fetch_rss_feed(url: str, max_items: int = 10) -> str:
         订阅源的最新文章列表，每条包含标题、链接、发布时间和摘要。
         如果获取失败，返回错误信息
     """
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=30) as response:
-            content = response.read().decode("utf-8")
+    articles = fetch_rss_articles(url, max_items)
 
-        root = ET.fromstring(content)
-
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
-
-        channel_title = ""
-        items = []
-
-        # 处理RSS格式
-        if root.tag == "rss":
-            channel = root.find("channel")
-            if channel is not None:
-                title_elem = channel.find("title")
-                if title_elem is not None:
-                    channel_title = title_elem.text or ""
-
-                for item in channel.findall("item")[:max_items]:
-                    item_data = {}
-                    title_elem = item.find("title")
-                    if title_elem is not None:
-                        item_data["title"] = title_elem.text or ""
-
-                    link_elem = item.find("link")
-                    if link_elem is not None:
-                        item_data["link"] = link_elem.text or ""
-                    else:
-                        item_data["link"] = ""
-
-                    desc_elem = item.find("description")
-                    if desc_elem is not None:
-                        item_data["description"] = desc_elem.text or ""
-
-                    pub_elem = item.find("pubDate")
-                    if pub_elem is not None:
-                        item_data["pubDate"] = pub_elem.text or ""
-
-                    if item_data.get("title"):
-                        items.append(item_data)
-
-        # 处理Atom格式
-        elif root.tag == "{http://www.w3.org/2005/Atom}feed" or root.tag == "feed":
-            feed_ns = root
-            title_elem = feed_ns.find("title")
-            if title_elem is not None:
-                channel_title = title_elem.text or ""
-
-            entries = feed_ns.findall("entry")[:max_items]
-            for entry in entries:
-                item_data = {}
-
-                title_elem = entry.find("title")
-                if title_elem is not None:
-                    item_data["title"] = title_elem.text or ""
-
-                link_elem = entry.find("link")
-                if link_elem is not None:
-                    href = link_elem.get("href")
-                    if href:
-                        item_data["link"] = href
-                    else:
-                        item_data["link"] = ""
-                else:
-                    item_data["link"] = ""
-
-                summary_elem = entry.find("summary")
-                if summary_elem is not None:
-                    item_data["description"] = summary_elem.text or ""
-                else:
-                    content_elem = entry.find("content")
-                    if content_elem is not None:
-                        item_data["description"] = content_elem.text or ""
-
-                updated_elem = entry.find("updated")
-                if updated_elem is not None:
-                    item_data["pubDate"] = updated_elem.text or ""
-
-                if item_data.get("title"):
-                    items.append(item_data)
-
-    except urllib.error.URLError as e:
-        return f"[Error] 无法访问 RSS 源: {e}"
-    except ET.ParseError as e:
-        return f"[Error] RSS 解析失败: {e}"
-    except Exception as e:
-        return f"[Error] 获取 RSS 失败: {e}"
-
-    if not channel_title:
-        channel_title = url
-
-    if not items:
-        return f"[Error] 未能解析 RSS 源: {url}"
+    if not articles:
+        return f"[Error] 未能获取或解析 RSS 源: {url}"
 
     # 构建返回结果
-    result = f"=== {channel_title} (共 {len(items)} 条) ===\n\n"
-    for i, item in enumerate(items, 1):
+    result = f"=== {url} (共 {len(articles)} 条) ===\n\n"
+    for i, item in enumerate(articles, 1):
         result += f"{i}. {item.get('title', '无标题')}\n"
         if item.get("link"):
             result += f"   链接: {item['link']}\n"
@@ -311,8 +216,6 @@ def fetch_rss_feed(url: str, max_items: int = 10) -> str:
             result += f"   时间: {item['pubDate']}\n"
         if item.get("description"):
             desc = item["description"][:200].replace("\n", " ").strip()
-            if len(item.get("description", "")) > 200:
-                desc += "..."
             result += f"   摘要: {desc}\n"
         result += "\n"
 

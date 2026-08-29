@@ -25,7 +25,7 @@ startAlertStream();
 startRssStream();
 
 // 定时刷新待办事项
-todoPollInterval = setInterval(loadTodo, POLL_INTERVAL);
+setInterval(loadTodo, POLL_INTERVAL);
 
 // 发送按钮点击事件
 $send.addEventListener('click', async () => {
@@ -111,27 +111,15 @@ setInterval(() => {
   }
 }, 2000);
 
-// 初始化技能/工具面板标签页切换
-document.querySelectorAll('.tools-tabs .tab-btn').forEach(btn => {
+// 标签页切换（SKILLS/TOOLS 与 INTELLIGENCE 面板共用 utils.js 的切换逻辑）
+document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tools-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tools-content .tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
     const tabId = btn.dataset.tab;
-    const panel = document.getElementById(`tab-${tabId}`);
-    if (panel) panel.classList.add('active');
-  });
-});
-
-// 初始化INTELLIGENCE面板标签页切换
-document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.intelligence-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.intelligence-content .tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    const tabId = btn.dataset.tab;
-    const panel = document.getElementById(`tab-${tabId}`);
-    if (panel) panel.classList.add('active');
+    if (btn.closest('.intelligence-tabs')) {
+      switchIntelligenceTab(tabId);
+    } else if (btn.closest('.tools-tabs')) {
+      switchToolsTab(tabId);
+    }
   });
 });
 

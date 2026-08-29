@@ -6,15 +6,8 @@ const API = '';
 
 const POLL_INTERVAL = 2000;
 
-const MARKDOWN_OPTIONS = {
-  highlight: (code, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value;
-    }
-    return hljs.highlightAuto(code).value;
-  },
+// marked 代码高亮在渲染后由 hljs.highlightElement 统一处理（见 utils.js）
+marked.setOptions({
   breaks: true,
   gfm: true,
-};
-
-marked.setOptions(MARKDOWN_OPTIONS);
+});

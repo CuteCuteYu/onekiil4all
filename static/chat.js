@@ -22,79 +22,72 @@ async function newChat() {
 
 async function sendMessage(text) {
   if (!text.trim()) return;
-  
+
   setBusyState(true);
-  renderLoadingMessage();
   setLoading(true, 'processing');
-  
-  const previousMessages = $messages.querySelectorAll('.msg');
-  let hasAssistant = false;
-  previousMessages.forEach(msg => {
-    if (msg.classList.contains('assistant')) hasAssistant = true;
-  });
-  
+
   renderMessage('user', text);
-  
+
   try {
     const controller = new AbortController();
     currentAbortController = controller;
-    
+
     const response = await fetch(`${API}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, thread_id: threadId }),
       signal: controller.signal,
     });
-    
+
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let messageContent = '';
+    let segmentBase = 0;
     let metadata = null;
-    let loadingDiv = null;
-    
+
     removeLoadingMessage();
-    
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-      
+
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           try {
             const event = JSON.parse(data);
-            
+
             if (event.type === 'thread_id') {
               threadId = event.thread_id;
               $threadBadge.textContent = threadId.slice(0, 8);
             } else if (event.type === 'status') {
-              if (!$messages.querySelector('.msg.assistant')) {
-                renderLoadingMessage();
-              }
               appendProgressMessage(event.message, 'info');
             } else if (event.type === 'todo_created') {
               appendProgressMessage('任务清单已创建', 'success');
               setTimeout(loadTodo, 500);
             } else if (event.type === 'tool_call') {
               appendProgressMessage(`[工具] ${event.name}: ${event.status}`, 'info');
-            } else if (event.type === 'tool_calls') {
-              appendProgressMessage(`[工具] ${event.tools.map(t => t.name).join(', ')}`, 'info');
+            } else if (event.type === 'segment_start') {
+              // 新的一段AI回复开始（工具调用后的新一轮或自动迭代）
+              ensureStreamingMessage();
+              segmentBase = messageContent.length;
             } else if (event.type === 'response') {
+              // token 增量，流式渲染到固定容器
+              const streamEl = ensureStreamingMessage();
               messageContent += event.content;
-              const lastMsg = $messages.querySelector('.msg.assistant:last-child');
-              if (lastMsg) {
-                lastMsg.querySelector('.msg-body').innerHTML = marked.parse(messageContent);
-                lastMsg.querySelectorAll('pre code').forEach(block => {
-                  hljs.highlightElement(block);
-                });
-              }
+              renderMarkdown(streamEl.querySelector('.msg-body'), messageContent);
+            } else if (event.type === 'response_final') {
+              // 本段结束，用后端权威完整文本替换流式内容
+              const streamEl = ensureStreamingMessage();
+              messageContent = messageContent.slice(0, segmentBase) + event.content;
+              renderMarkdown(streamEl.querySelector('.msg-body'), messageContent);
             } else if (event.type === 'done') {
               metadata = event.metadata;
             }
@@ -102,12 +95,14 @@ async function sendMessage(text) {
         }
       }
     }
-    
+
+    removeStreamingMessage();
     if (messageContent) {
       renderMessage('assistant', messageContent, metadata);
     }
-    
+
   } catch (e) {
+    removeStreamingMessage();
     if (e.name === 'AbortError') {
       appendProgressMessage('已中断', 'warning');
     } else {
@@ -118,7 +113,7 @@ async function sendMessage(text) {
     setBusyState(false);
     setLoading(false);
     currentAbortController = null;
-    
+
     if (pendingMessages.length > 0 && !busy) {
       const nextMsg = pendingMessages.shift();
       pendingQueue.classList.add('active');
@@ -143,7 +138,7 @@ function renderPendingList() {
       <button class="pending-remove" data-index="${i}">×</button>
     </div>
   `).join('');
-  
+
   $pendingList.querySelectorAll('.pending-remove').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const index = parseInt(e.target.dataset.index);

@@ -15,14 +15,13 @@ from deepagents import create_deep_agent
 from deepagents.backends import StoreBackend
 from langgraph.checkpoint.memory import InMemorySaver
 
+from model_set import model_set  # 模型配置
+
 # ═══════════════════════════════════════════════════════════════
 # 导入项目内部模块
 # ═══════════════════════════════════════════════════════════════
-
 from .skill_set import create_skill_store  # 技能存储创建
 from .tools_set import tools  # 工具列表
-from model_set import model_set  # 模型配置
-
 
 # ═══════════════════════════════════════════════════════════════
 # 初始化技能存储
@@ -54,7 +53,9 @@ def create_agent():
     agent = create_deep_agent(
         model=model_set.model,  # 使用配置的DeepSeek模型
         memory=["./prompt/AGENTS.md"],  # 系统提示词文件
-        backend=(lambda rt: StoreBackend(rt)),  # 存储后端
+        backend=StoreBackend(
+            namespace=lambda _rt: ("filesystem",), store=store
+        ),  # 存储后端（0.7+ 需传实例而非工厂）
         store=store,  # 技能存储
         skills=["/skills/"],  # 技能路径
         tools=tools,  # 可用工具列表

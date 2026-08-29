@@ -6,12 +6,17 @@ async function loadTrends() {
   try {
     const res = await fetch(`${API}/api/trends`);
     const data = await res.json();
-    
-    if (data.hot_search && data.hot_search.length > 0) {
+
+    const hasRealData =
+      data.hot_search &&
+      data.hot_search.length > 0 &&
+      !(data.hot_search.length === 1 && data.hot_search[0].word === '暂无数据');
+
+    if (hasRealData) {
       const grouped = groupBySource(data.hot_search);
       $hotsearchList.innerHTML = Object.entries(grouped).map(([source, items]) => `
         <div class="trend-group">
-          <div class="trend-group-title">${source}</div>
+          <div class="trend-group-title">${escapeHtml(source)}</div>
           ${items.map(item => renderHotsearchItem(item)).join('')}
         </div>
       `).join('');

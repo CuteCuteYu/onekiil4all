@@ -1,12 +1,12 @@
 # 上古必斩必杀
 
-AI Intelligent Assistant - Built with LangChain + DeepSeek
+AI Intelligent Assistant - Built with LangChain + Anthropic-compatible models
 
 ## Project Overview
 
 上古必斩必杀 is a powerful AI assistant that supports:
 
-- **Smart Conversation**: Based on DeepSeek large language model
+- **Smart Conversation**: Anthropic-protocol-compatible LLMs (Claude / GLM, etc.)
 - **Task Management**: Auto-generate and manage TODO lists
 - **Tool Calling**: Support for multiple tools (file operations, command execution, etc.)
 - **Web Interface**: Modern responsive frontend
@@ -14,7 +14,7 @@ AI Intelligent Assistant - Built with LangChain + DeepSeek
 ## Tech Stack
 
 - **Backend**: Python 3.11+, FastAPI, **LangChain**, LangGraph
-- **AI Model**: DeepSeek Chat API
+- **AI Model**: Anthropic-compatible API (reads `ANTHROPIC_*` env vars by default)
 - **Frontend**: Native HTML/CSS/JavaScript
 - **Architecture**: Agent architecture with tool calling and auto-iteration
 - **Reference**: LangChain, DeepAgents
@@ -24,57 +24,56 @@ AI Intelligent Assistant - Built with LangChain + DeepSeek
 ```
 onekiil4all/
 ├── web/                      # Web server code
-│   ├── web_server.py         # FastAPI web server
-│   ├── chat_handler.py       # Chat handler
+│   ├── web_server.py         # FastAPI app assembly (lifespan/static/routes)
+│   ├── chat_handler.py       # Chat handler (token-level streaming)
 │   ├── conversation.py       # Conversation management
 │   ├── task_analyzer.py      # Task analyzer
 │   ├── todo_manager.py       # TODO manager
-│   ├── trends.py             # Trending data fetching (multi-threaded)
-│   └── alert_manager.py     # Alert management module
+│   ├── sessions.py           # Session store (bounded)
+│   ├── chat_history_store.py # Chat history (JSONL append)
+│   ├── sse.py                # SSE formatting + per-connection broadcast
+│   ├── paths.py              # Project path constants (anchored to root)
+│   ├── api/                  # API routers
+│   │   ├── chat_api.py       # Chat/session/todo/history routes
+│   │   ├── meta_api.py       # Skills/tools routes
+│   │   └── intelligence_api.py # Trends/alerts/rss routes
+│   └── intelligence/         # Intelligence module
+│       ├── trends.py         # Trending data (concurrent + TTL cache)
+│       ├── alert_manager.py  # Alert management
+│       ├── rss_manager.py    # RSS subscription store
+│       └── rss_parser.py     # Shared RSS/Atom parsing
 ├── agent_set/                # Agent components
 │   ├── agent_set.py          # Agent creation
 │   ├── tools_set.py          # Tool set definitions
-│   └── skill_set.py         # Skill configuration
+│   └── skill_set.py          # Skill configuration
 ├── model_set/                # Model configuration
-│   └── model_set.py          # DeepSeek model configuration
+│   └── model_set.py          # Model configuration (ANTHROPIC_* env vars)
 ├── static/                   # Frontend static resources
 │   ├── index.html            # Main page
 │   ├── style.css             # Stylesheet
 │   ├── config.js             # Configuration and constants
-│   ├── state.js              # State management
+│   ├── state.js              # Global state
 │   ├── dom.js                # DOM element cache
 │   ├── utils.js              # Utility functions
 │   ├── chat.js               # Chat functionality
 │   ├── history.js            # History records
-│   ├── todo.js              # Todo items
-│   ├── skills.js            # Skills/tools
-│   ├── init.js              # Initialization and event binding
-│   ├── alert.html           # Alert detail page
-│   ├── alert.js             # Alert detail page logic
+│   ├── todo.js               # Todo items
+│   ├── skills.js             # Skills/tools
+│   ├── init.js               # Initialization and event binding
+│   ├── alert.html            # Alert detail page
+│   ├── alert.js              # Alert detail page logic
 │   ├── alert.css             # Alert detail page styles
-│   └── intelligence/        # Intelligence module
-│       ├── trends.js        # Trending data
-│       ├── alerts.js        # Alert functionality
-│       ├── links.js         # Association search
-│       ├── rss.js           # RSS subscription
-│       └── security.js      # Security intelligence
-├── web/                      # FastAPI Web server
-│   ├── web_server.py         # Main entry point
-│   ├── chat_handler.py       # Chat processing
-│   ├── conversation.py      # Session management
-│   ├── task_analyzer.py     # Task analysis
-│   ├── todo_manager.py      # TODO management
 │   └── intelligence/         # Intelligence module
-│       ├── trends.py         # Trending data fetching
-│       ├── alert_manager.py  # Alert management
-│       └── rss_manager.py    # RSS subscription management
-├── data/                     # Data storage directory
-│   ├── alerts.json           # Alert rules storage
-│   ├── alert_history.json    # Alert history records
-│   └── rss_sources.json      # RSS sources storage
+│       ├── trends.js         # Trending data
+│       ├── alerts.js         # Alert functionality
+│       ├── links.js          # Association search
+│       ├── rss.js            # RSS subscription
+│       └── security.js       # Security intelligence
+├── tests/                    # pytest tests
+├── data/                     # Runtime data storage (generated, gitignored)
 ├── prompt/                   # Prompt configuration
 │   └── AGENTS.md             # Agent system prompts
-├── chat_history/             # Conversation history storage
+├── chat_history/             # Conversation history storage (runtime, gitignored)
 ├── pyproject.toml            # Project configuration
 └── README.en.md              # Project documentation
 ```
@@ -118,7 +117,7 @@ The system includes multiple built-in tools:
 ### 5. Keyword Monitoring & Alerts
 
 - **Add Monitoring**: Enter keywords in ALERTS tab to add monitoring
-- **Auto-detection**: Checks trending data every second, alerts immediately on match
+- **Auto-detection**: Background task checks trending data every 30 seconds (data cached for 30s), alerts immediately on match
 - **Real-time Push**: SSE pushes new alerts to frontend instantly
 - **Event Timeline**: Click keyword to view complete alert history
 - **Persistent Storage**: Alert rules and history stored in `data/` directory
@@ -156,7 +155,7 @@ The system includes multiple built-in tools:
 ### Requirements
 
 - Python 3.11 or higher
-- DeepSeek API Key
+- Anthropic-compatible API credentials (`ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`)
 
 ### Installation
 
@@ -175,12 +174,21 @@ uv sync
 
 3. Configure environment variables:
 
-Add `DEEPSEEK_API_KEY` to system environment variables with your DeepSeek API Key value.
+Model configuration reads `ANTHROPIC_`-prefixed environment variables by default (credentials set by Claude Code / Zhipu etc. can be reused directly):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ANTHROPIC_AUTH_TOKEN` | Auth credential (Bearer; either this or API_KEY) | (required) |
+| `ANTHROPIC_API_KEY` | Auth credential (x-api-key) | (required) |
+| `ANTHROPIC_BASE_URL` | API endpoint | `https://api.anthropic.com` |
+| `ANTHROPIC_MODEL` | Model name | `claude-sonnet-4-5` |
 
 Or create a `.env` file:
 
 ```bash
-DEEPSEEK_API_KEY=your_api_key_here
+ANTHROPIC_AUTH_TOKEN=your_token_here
+ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
+ANTHROPIC_MODEL=GLM-4.7
 ```
 
 4. Start the service:
@@ -223,13 +231,15 @@ All tool calls display real-time progress on the frontend.
 
 ### Model Configuration
 
-Modify `model_set/model_set.py` to change the model:
+Modify `model_set/model_set.py` to change the model (or configure via the `ANTHROPIC_*` environment variables above):
 
 ```python
-model = ChatOpenAI(
-    model="deepseek-chat",           # Model name
-    api_key=convert_to_secret_str(api_key),
-    base_url="https://api.deepseek.com",  # API URL
+model = ChatAnthropic(
+    model=model_name,  # ANTHROPIC_MODEL
+    api_key=convert_to_secret_str(
+        auth_token
+    ),  # ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY
+    base_url=base_url,  # ANTHROPIC_BASE_URL
 )
 ```
 
@@ -239,7 +249,7 @@ Modify `agent_set/tools_set.py` to add or modify tools.
 
 ### Task Threshold
 
-Modify `message_length >= 20` in `web/web_server.py` to adjust TODO creation threshold.
+Modify `len(message.strip()) >= 20` in `web/api/chat_api.py` to adjust TODO creation threshold.
 
 ## API Endpoints
 
@@ -252,6 +262,7 @@ The service provides the following REST APIs:
 | `/static/*` | GET | Static resources |
 | `/api/chat` | POST | Send chat message (SSE streaming) |
 | `/api/new` | POST | Create new conversation |
+| `/api/sessions` | GET | List all sessions |
 | `/api/history` | GET | Get conversation history |
 | `/api/history/{tid}` | GET | Get specific conversation |
 | `/api/history/{tid}` | DELETE | Delete conversation |
@@ -277,7 +288,7 @@ The service provides the following REST APIs:
 ### Description
 
 - **Add Subscription**: In INTELLIGENCE panel's RSS tab, enter RSS/Atom URL to add
-- **Scheduled Fetch**: Background thread fetches every 60 seconds (check interval 1 second)
+- **Scheduled Fetch**: Each source fetched every 60 seconds by default (check interval 10 seconds); failed fetches also count toward the interval (natural backoff)
 - **Real-time Push**: New articles pushed to frontend via SSE
 - **Article Storage**: Each source keeps latest 10 articles
 
@@ -330,7 +341,7 @@ _executor.shutdown(wait=False)
 
 ### Q: How to get API Key?
 
-A: Visit [DeepSeek Open Platform](https://platform.deepseek.com/) to register and get API Key.
+A: Any Anthropic-protocol-compatible platform works (Anthropic official, Zhipu open.bigmodel.cn, etc.). Existing ANTHROPIC_* environment variables (e.g. from Claude Code) can be reused directly.
 
 ### Q: Why do tool calls fail?
 
@@ -355,7 +366,7 @@ MIT License
 ## Acknowledgments
 
 - [LangChain](https://github.com/langchain-ai/langchain) - LLM application framework
-- [DeepSeek](https://www.deepseek.com/) - Large language model
+- [Anthropic Claude](https://www.anthropic.com/) - LLM API protocol
 - [DeepAgents](https://github.com/deepagents) - Agent framework
 - [orz.ai](https://orz.ai/) - Trending data API provider
 - [Chinaz](https://www.chinaz.com/) - IP lookup, WHOIS, website security scanning

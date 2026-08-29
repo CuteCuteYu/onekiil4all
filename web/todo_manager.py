@@ -6,25 +6,24 @@ Todo Manager - 待办事项管理模块
  作者: CuteCuteYu
 """
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 # 导入标准库和项目模块
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 
-import os
 import json
+import logging
+import shutil
 from pathlib import Path
+
 from model_set import model_set
+from web.paths import TODO_DIR
 
-# 获取AI模型实例
-model = model_set.model
-
-# TODO文件存储目录
-TODO_DIR = "todo"
+logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 # TodoManager 类 - TODO管理器
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
 
 
 class TodoManager:
@@ -35,15 +34,16 @@ class TodoManager:
     TODO以Markdown格式存储在文件中
     """
 
-    def __init__(self, thread_id: str):
+    def __init__(self, thread_id: str, base_dir: Path | None = None):
         """
         初始化TODO管理器
 
         参数:
             thread_id: 线程ID，用于区分不同的对话会话
+            base_dir: TODO根目录，默认为项目根目录下的 todo/
         """
         self.thread_id = thread_id
-        self.todo_dir = Path(TODO_DIR) / thread_id  # TODO目录
+        self.todo_dir = (base_dir or TODO_DIR) / thread_id  # TODO目录
         self.todo_file = self.todo_dir / "todo.md"  # TODO文件路径
 
     def create_todo(self, user_request: str) -> list[str]:
@@ -84,7 +84,7 @@ class TodoManager:
 
         try:
             # 调用AI生成TODO
-            result = model.invoke(prompt)
+            result = model_set.model.invoke(prompt)
             content = result.content
 
             # 提取JSON部分（处理可能的代码块格式）
@@ -98,14 +98,15 @@ class TodoManager:
             tasks = data.get("tasks", [])
 
             # 保存为Markdown文件
-            self._save_todo_md(tasks)
+            self.save_todo(tasks)
             return [t.get("description", "") for t in tasks]
         except (json.JSONDecodeError, KeyError):
+            logger.warning("TODO 生成失败，已创建空TODO", exc_info=True)
             # 失败时创建空TODO
-            self._save_todo_md([])
+            self.save_todo([])
             return []
 
-    def _save_todo_md(self, tasks: list[dict]):
+    def save_todo(self, tasks: list[dict]):
         """
         保存TODO为Markdown文件
 
@@ -114,7 +115,7 @@ class TodoManager:
         """
         # 构建文件头部
         content = f"# TODO 列表 - Thread: {self.thread_id}\n\n"
-        content += f"## 任务清单\n\n"
+        content += "## 任务清单\n\n"
 
         if not tasks:
             content += "> AI 正在分析任务，请稍后...\n"
@@ -126,6 +127,7 @@ class TodoManager:
                 content += f"{status} {task.get('description', '')}\n"
 
         # 写入文件
+        self.todo_dir.mkdir(parents=True, exist_ok=True)
         with open(self.todo_file, "w", encoding="utf-8") as f:
             f.write(content)
 
@@ -211,7 +213,7 @@ AI 最新响应: {response}
 
         try:
             # 调用AI更新状态
-            result = model.invoke(prompt)
+            result = model_set.model.invoke(prompt)
             content = result.content
 
             # 提取JSON
@@ -224,20 +226,19 @@ AI 最新响应: {response}
             updated_tasks = data.get("tasks", [])
 
             # 保存更新
-            self._save_todo_md(updated_tasks)
+            self.save_todo(updated_tasks)
 
             # 检查是否全部完成
             all_completed = all(t.get("completed", False) for t in updated_tasks)
 
             return updated_tasks, all_completed
         except (json.JSONDecodeError, KeyError):
+            logger.warning("TODO 更新失败，保留原状态", exc_info=True)
             return tasks, False
 
     def delete_todo(self):
         """删除TODO目录和文件"""
         if self.todo_dir.exists():
-            import shutil
-
             shutil.rmtree(self.todo_dir)
 
     def exists(self) -> bool:
@@ -250,31 +251,28 @@ AI 最新响应: {response}
 
     def display_todo(self, title: str = "TODO 列表"):
         """
-        在终端显示TODO内容
+        显示TODO内容
 
         参数:
             title: 显示标题
         """
-        tasks, content = self.read_todo()
+        tasks, _content = self.read_todo()
 
         if not tasks:
             return
 
-        # 打印标题和分隔线
-        print(f"\n[{title}]")
-        print("-" * 50)
+        lines = [f"[{title}]", "-" * 50]
 
         # 统计完成情况
         completed_count = sum(1 for t in tasks if t.get("completed", False))
         total_count = len(tasks)
-        progress = f"[{completed_count}/{total_count}]"
-
-        print(f"进度: {progress}")
+        lines.append(f"进度: [{completed_count}/{total_count}]")
 
         # 逐个显示任务
         for i, task in enumerate(tasks, 1):
             status = "[+]" if task.get("completed", False) else "[-]"
             desc = task.get("description", "")
-            print(f"  {i}. {status} {desc}")
+            lines.append(f"  {i}. {status} {desc}")
 
-        print("-" * 50)
+        lines.append("-" * 50)
+        logger.info("\n%s", "\n".join(lines))

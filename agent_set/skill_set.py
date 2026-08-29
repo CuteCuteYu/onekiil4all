@@ -16,10 +16,8 @@ from pathlib import Path
 # ═══════════════════════════════════════════════════════════════
 # 导入DeepAgents工具函数
 # ═══════════════════════════════════════════════════════════════
-
 from deepagents.backends.utils import create_file_data
 from langgraph.store.memory import InMemoryStore
-
 
 # ═══════════════════════════════════════════════════════════════
 # 技能加载函数
@@ -47,7 +45,7 @@ def load_skill() -> dict:
                 try:
                     # 读取技能文件内容
                     skills_dict[folder.name] = skill_md.read_text(encoding="utf-8")
-                except Exception as e:
+                except OSError as e:
                     skills_dict[folder.name] = f"Error: {e}"
     return skills_dict
 

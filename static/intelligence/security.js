@@ -2,39 +2,32 @@
  * 上古必斩必杀 安全情报功能
  */
 
-const securityTools = [
-  {
-    id: 'ip',
-    name: 'IP归属地查询',
-    desc: '查询IP地址的归属地、运营商等信息',
-    url: 'https://ip.chinaz.com/',
-    placeholder: '输入IP地址...'
-  },
-  {
-    id: 'whois',
-    name: 'WHOIS查询',
-    desc: '查询域名的注册信息、过期时间等',
-    url: 'https://whois.chinaz.com/',
-    placeholder: '输入域名...'
-  },
-  {
-    id: 'cve',
-    name: 'CVE漏洞查询',
-    desc: '查询CVE漏洞编号获取详细信息',
-    urls: [
-      { name: 'CVE Details', url: 'https://www.cvedetails.com/' },
-      { name: '阿里云漏洞库', url: 'https://avd.aliyun.com/' }
-    ],
-    placeholder: '输入CVE编号，如CVE-2024-0001'
-  },
-  {
-    id: 'site',
-    name: '网站安全检测',
-    desc: '检测网站安全状况、漏洞等',
-    url: 'https://defense.yunaq.com/',
-    placeholder: '输入网站地址...'
-  }
-];
+// IPv4 校验
+function isValidIPv4(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every(p => /^\d{1,3}$/.test(p) && parseInt(p) <= 255);
+}
+
+// IPv6 粗校验（十六进制与冒号组成）
+function isValidIPv6(ip) {
+  return /^[0-9a-fA-F:]+$/.test(ip) && ip.includes(':');
+}
+
+/**
+ * 从输入中提取主机名。
+ * 用 includes('://') 判断是否已带协议，
+ * 避免把 httpfoo.com 这类以 http 开头的域名误判跳过补协议。
+ */
+function extractHostname(input) {
+  const url = input.includes('://') ? input : `http://${input}`;
+  return new URL(url).hostname;
+}
+
+function openExternal(url) {
+  // noopener 防止新标签页通过 window.opener 反向操控本页（reverse tabnabbing）
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
 function queryIP() {
   const ip = $securityIpInput.value.trim();
@@ -42,7 +35,11 @@ function queryIP() {
     alert('请输入IP地址');
     return;
   }
-  window.open('https://ip.chinaz.com/' + ip, '_blank');
+  if (!isValidIPv4(ip) && !isValidIPv6(ip)) {
+    alert('请输入有效的IP地址，如 8.8.8.8');
+    return;
+  }
+  openExternal('https://ip.chinaz.com/' + encodeURIComponent(ip));
 }
 
 function queryWhois() {
@@ -51,12 +48,13 @@ function queryWhois() {
     alert('请输入域名');
     return;
   }
-  let finalDomain = domain;
-  if (!domain.startsWith('http')) {
-    finalDomain = 'http://' + domain;
+  try {
+    const hostname = extractHostname(domain);
+    if (!hostname) throw new Error('empty hostname');
+    openExternal('https://whois.chinaz.com/' + encodeURIComponent(hostname));
+  } catch (e) {
+    alert('请输入有效的域名');
   }
-  const hostname = new URL(finalDomain).hostname;
-  window.open('https://whois.chinaz.com/' + hostname, '_blank');
 }
 
 function queryCVE() {
@@ -66,11 +64,12 @@ function queryCVE() {
     return;
   }
   const cveId = cve.toUpperCase();
-  if (!cveId.startsWith('CVE-')) {
+  if (!/^CVE-\d{4}-\d{4,}$/.test(cveId)) {
     alert('请输入有效的CVE编号，格式如：CVE-2024-0001');
     return;
   }
-  window.open('https://avd.aliyun.com/search?keyword=' + cveId, '_blank');
+  // 阿里云漏洞库搜索参数为 q（keyword 会得到"参数为空"错误页）
+  openExternal('https://avd.aliyun.com/search?q=' + encodeURIComponent(cveId));
 }
 
 function querySite() {
@@ -79,13 +78,10 @@ function querySite() {
     alert('请输入网站地址');
     return;
   }
-  let url = site;
-  if (!site.startsWith('http')) {
-    url = 'http://' + site;
-  }
   try {
-    const hostname = new URL(url).hostname;
-    window.open('https://tool.chinaz.com/webscan?host=' + hostname, '_blank');
+    const hostname = extractHostname(site);
+    if (!hostname) throw new Error('empty hostname');
+    openExternal('https://tool.chinaz.com/webscan?host=' + encodeURIComponent(hostname));
   } catch (e) {
     alert('请输入有效的网站地址');
   }

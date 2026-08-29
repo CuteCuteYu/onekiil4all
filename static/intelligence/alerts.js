@@ -180,6 +180,4 @@ function startAlertStream() {
     eventSource.close();
     setTimeout(startAlertStream, 5000);
   };
-  
-  alertEventSource = eventSource;
 }

@@ -41,26 +41,30 @@ async function loadHistory() {
   }
 }
 
-async function loadHistoryThread(threadId) {
+async function loadHistoryThread(tid) {
   try {
-    const res = await fetch(`${API}/api/history/${threadId}`);
+    const res = await fetch(`${API}/api/history/${tid}`);
     const data = await res.json();
-    
+
+    // 更新全局 threadId（loadTodo 轮询、发消息都依赖它）
     threadId = data.thread_id;
     $threadBadge.textContent = threadId.slice(0, 8);
     $messages.innerHTML = '';
-    
+
     for (const msg of data.messages) {
       renderMessage(msg.role, msg.content, msg.metadata);
     }
+
+    // 切换线程后刷新TODO面板
+    loadTodo();
   } catch (e) {
     console.error('Failed to load history thread:', e);
   }
 }
 
-async function deleteHistory(threadId) {
+async function deleteHistory(tid) {
   try {
-    await fetch(`${API}/api/history/${threadId}`, { method: 'DELETE' });
+    await fetch(`${API}/api/history/${tid}`, { method: 'DELETE' });
     loadHistory();
   } catch (e) {
     console.error('Failed to delete history:', e);

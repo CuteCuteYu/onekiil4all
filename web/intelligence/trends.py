@@ -7,15 +7,31 @@ Trends - 热点资讯获取模块
  作者: 上古必斩必杀
 """
 
-# ═══════════════════════════════════════════════════════════════
-# 导入标准库
-# ═══════════════════════════════════════════════════════════════
+import copy
+import logging
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+logger = logging.getLogger(__name__)
 
 # 创建线程池，全局复用
 _executor = ThreadPoolExecutor(max_workers=8)
+
+# 趋势数据缓存（API请求、关联分析和后台告警检查共用，消掉大部分重复外呼）
+_TRENDS_CACHE_TTL = 30.0
+_trends_cache: dict | None = None
+_trends_cache_time = 0.0
+_trends_lock = threading.Lock()
+
+# 平台到数据分类的映射
+_PLATFORM_MAP = {
+    "hot_search": ["baidu", "weibo", "zhihu", "douyin", "bilibili"],
+    "github": ["github"],
+    "tech_news": ["sspai", "tskr", "juejin", "vtex", "hackernews"],
+}
 
 
 def _fetch_platform(platform: str) -> tuple[str, list]:
@@ -35,43 +51,22 @@ def _fetch_platform(platform: str) -> tuple[str, list]:
                 json_data.get("data", []) if isinstance(json_data, dict) else json_data
             )
             return platform, data if isinstance(data, list) else []
+        logger.debug("平台 %s 返回状态码 %s", platform, res.status_code)
         return platform, []
-    except Exception:
+    except (requests.RequestException, ValueError) as e:
+        logger.debug("平台 %s 抓取失败: %s", platform, e)
         return platform, []
 
 
-def get_trends(check_alerts: bool = False) -> dict:
-    """
-    获取热门搜索和情报信息
-
-    参数:
-        check_alerts: 是否检查并触发告警，默认False
-
-    从多个平台获取热点数据：
-    - 热搜平台: 百度、微博、知乎、抖音、B站
-    - GitHub: GitHub趋势
-    - 科技新闻: 少数派、钛媒体、掘金、V2EX、HackerNews
-
-    返回:
-        字典，包含以下键:
-        - hot_search: 热搜列表
-        - github: GitHub趋势列表
-        - tech_news: 科技新闻列表
-        - new_alerts: 新触发的告警事件（仅当check_alerts=True时）
-    """
-    trends_data = {"hot_search": [], "github": [], "tech_news": []}
-
-    platform_map = {
-        "hot_search": ["baidu", "weibo", "zhihu", "douyin", "bilibili"],
-        "github": ["github"],
-        "tech_news": ["sspai", "tskr", "juejin", "vtex", "hackernews"],
-    }
+def _fetch_all_trends() -> dict:
+    """并发抓取所有平台数据并归类整理"""
+    trends_data: dict = {"hot_search": [], "github": [], "tech_news": []}
 
     try:
         platforms = (
-            platform_map.get("hot_search", [])
-            + platform_map.get("github", [])
-            + platform_map.get("tech_news", [])
+            _PLATFORM_MAP["hot_search"]
+            + _PLATFORM_MAP["github"]
+            + _PLATFORM_MAP["tech_news"]
         )
 
         futures = {_executor.submit(_fetch_platform, p): p for p in platforms}
@@ -79,7 +74,7 @@ def get_trends(check_alerts: bool = False) -> dict:
         for future in as_completed(futures):
             platform, data = future.result()
 
-            if platform in platform_map["hot_search"]:
+            if platform in _PLATFORM_MAP["hot_search"]:
                 trends_data["hot_search"].extend(
                     [
                         {
@@ -92,7 +87,7 @@ def get_trends(check_alerts: bool = False) -> dict:
                     ]
                 )
 
-            elif platform in platform_map["github"]:
+            elif platform in _PLATFORM_MAP["github"]:
                 if data:
                     trends_data["github"] = [
                         {
@@ -108,7 +103,7 @@ def get_trends(check_alerts: bool = False) -> dict:
                         for item in data[:10]
                     ]
 
-            elif platform in platform_map["tech_news"]:
+            elif platform in _PLATFORM_MAP["tech_news"]:
                 trends_data["tech_news"].extend(
                     [
                         {
@@ -138,25 +133,56 @@ def get_trends(check_alerts: bool = False) -> dict:
         if not trends_data["tech_news"]:
             trends_data["tech_news"] = [{"title": "暂无数据", "url": "", "source": ""}]
 
-        if check_alerts:
-            from web.alert_manager import alert_manager
-
-            new_events = alert_manager.check_alerts(trends_data)
-            if new_events:
-                trends_data["new_alerts"] = [e.to_dict() for e in new_events]
-
         return trends_data
 
     except Exception as e:
-        result = {
+        logger.exception("趋势数据抓取异常")
+        return {
             "error": str(e),
             "hot_search": [],
             "github": [],
             "tech_news": [],
         }
-        if check_alerts:
-            result["new_alerts"] = []
-        return result
+
+
+def get_trends(check_alerts: bool = False) -> dict:
+    """
+    获取热门搜索和情报信息（带 TTL 缓存）
+
+    参数:
+        check_alerts: 是否检查并触发告警，默认False
+
+    返回:
+        字典，包含以下键:
+        - hot_search: 热搜列表
+        - github: GitHub趋势列表
+        - tech_news: 科技新闻列表
+        - new_alerts: 新触发的告警事件（仅当check_alerts=True时）
+    """
+    global _trends_cache, _trends_cache_time
+
+    with _trends_lock:
+        if (
+            _trends_cache is None
+            or time.monotonic() - _trends_cache_time > _TRENDS_CACHE_TTL
+        ):
+            fresh = _fetch_all_trends()
+            if "error" not in fresh:
+                _trends_cache = fresh
+                _trends_cache_time = time.monotonic()
+            source = fresh if "error" in fresh else _trends_cache
+        else:
+            source = _trends_cache
+        trends_data = copy.deepcopy(source)
+
+    if check_alerts:
+        from web.intelligence.alert_manager import alert_manager
+
+        new_events = alert_manager.check_alerts(trends_data)
+        if new_events:
+            trends_data["new_alerts"] = [e.to_dict() for e in new_events]
+
+    return trends_data
 
 
 def get_keyword_associations(keyword: str) -> dict:
@@ -241,3 +267,8 @@ def extract_keywords(text: str) -> list:
     keywords.extend([w.lower() for w in english])
 
     return keywords
+
+
+def shutdown_executor():
+    """关闭全局线程池（服务退出时调用）"""
+    _executor.shutdown(wait=False)

@@ -1,6 +1,5 @@
 # uv
 .uv/
-uv.lock
 
 # Python
 __pycache__/
@@ -43,6 +42,8 @@ env/
 
 # Project specific
 todo/
+chat_history/
+data/
 *.log
 .pytest_cache/
 .coverage
@@ -50,10 +51,10 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Environment / secrets
+.env
+
 # Memory / Cache
 .claude/
 *.bak
 *.tmp
-
-# Agent config
-AGENTS.md

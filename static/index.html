@@ -216,28 +216,28 @@
                 <div class="tool-desc">查询IP地址的归属地、运营商等信息</div>
                 <input type="text" id="security-ip-input" placeholder="输入IP地址...">
                 <button class="btn-query" id="btn-query-ip">查询</button>
-                <a href="https://ip.chinaz.com/" target="_blank" class="btn-link">站长工具</a>
+                <a href="https://ip.chinaz.com/" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
               </div>
               <div class="security-tool-item">
                 <div class="tool-name">WHOIS查询</div>
                 <div class="tool-desc">查询域名的注册信息、过期时间等</div>
                 <input type="text" id="security-domain-input" placeholder="输入域名...">
                 <button class="btn-query" id="btn-query-whois">查询</button>
-                <a href="https://whois.chinaz.com/" target="_blank" class="btn-link">站长工具</a>
+                <a href="https://whois.chinaz.com/" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
               </div>
               <div class="security-tool-item">
                 <div class="tool-name">CVE漏洞查询</div>
                 <div class="tool-desc">查询CVE漏洞编号获取详细信息</div>
                 <input type="text" id="security-cve-input" placeholder="输入CVE编号，如CVE-2024-0001">
                 <button class="btn-query" id="btn-query-cve">查询</button>
-                <a href="https://avd.aliyun.com/" target="_blank" class="btn-link">阿里云漏洞库</a>
+                <a href="https://avd.aliyun.com/" target="_blank" rel="noopener noreferrer" class="btn-link">阿里云漏洞库</a>
               </div>
               <div class="security-tool-item">
                 <div class="tool-name">网站安全检测</div>
                 <div class="tool-desc">检测网站安全状况、漏洞等</div>
                 <input type="text" id="security-site-input" placeholder="输入网站地址...">
                 <button class="btn-query" id="btn-query-site">检测</button>
-                <a href="https://tool.chinaz.com/webscan" target="_blank" class="btn-link">站长工具</a>
+                <a href="https://tool.chinaz.com/webscan" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
               </div>
             </div>
           </div>
@@ -247,10 +247,12 @@
   </div>
 
   <!-- 引入外部JavaScript库 -->
-  <!-- marked.js - Markdown解析库 -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- highlight.js - 代码高亮库 -->
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
+  <!-- marked.js - Markdown解析库（锁定版本，latest 已移除部分选项） -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <!-- DOMPurify - HTML消毒库，防止助手回复中的恶意脚本执行 -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+  <!-- highlight.js - 代码高亮库（官方 cdn-release 构建；npm 包内无 highlight.min.js） -->
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
   
   <!-- 引入应用程序模块化JavaScript文件 -->
   <script src="/static/config.js"></script>
