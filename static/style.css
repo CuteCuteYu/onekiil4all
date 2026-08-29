@@ -1409,8 +1409,54 @@ html, body {
   50% { border-color: var(--warning); background: rgba(245, 158, 11, 0.1); }
 }
 
-.alert-item.new {
+.alert-item.new,
+.alert-history-item.new {
   animation: alertPulse 1s ease-in-out 3;
+}
+
+/**
+ * ALERTS 标签未读徽标（收到新告警而未查看时显示）
+ */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: var(--warning);
+  color: var(--bg);
+  font-size: 8px;
+  line-height: 1;
+  vertical-align: 1px;
+  font-family: var(--mono);
+}
+
+.tab-badge[hidden] {
+  display: none;
+}
+
+/**
+ * 告警规则项统计行（触发次数 + 最后触发时间）
+ */
+.alert-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-item-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 3px;
+  font-size: 8px;
+  color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+
+.alert-item-stats .alert-item-count {
+  color: var(--fg-muted);
 }
 
 

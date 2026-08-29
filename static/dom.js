@@ -23,6 +23,7 @@ const $hotsearchList = document.getElementById('hotsearch-list');
 const $alertsList = document.getElementById('alerts-list');
 const $alertHistoryList = document.getElementById('alert-history-list');
 const $alertInput = document.getElementById('alert-input');
+const $alertUnreadBadge = document.getElementById('alert-unread-badge');
 const $btnAddAlert = document.getElementById('btn-add-alert');
 const $btnRefreshAlerts = document.getElementById('btn-refresh-alerts');
 const $btnClearAlertHistory = document.getElementById('btn-clear-alert-history');

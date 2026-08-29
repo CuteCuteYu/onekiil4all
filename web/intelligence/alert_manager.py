@@ -8,6 +8,7 @@ Alert Manager - 告警管理模块
 
 import json
 import logging
+import threading
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -118,6 +119,8 @@ class AlertManager:
         self.alerts: list[Alert] = []
         self.history: list[AlertEvent] = []
         self._processed_urls: set[tuple[str, str]] = set()
+        # 后台告警检查线程与 API 事件循环线程共享本实例，用锁串行化状态修改
+        self._lock = threading.Lock()
         self._load()
 
     def _load(self):
@@ -167,28 +170,30 @@ class AlertManager:
         if not keyword:
             raise ValueError("关键词不能为空")
 
-        for alert in self.alerts:
-            if alert.keyword.lower() == keyword.lower():
-                raise ValueError(f"关键词 '{keyword}' 已存在")
+        with self._lock:
+            for alert in self.alerts:
+                if alert.keyword.lower() == keyword.lower():
+                    raise ValueError(f"关键词 '{keyword}' 已存在")
 
-        alert = Alert(
-            id=f"alert_{uuid.uuid4().hex[:8]}",
-            keyword=keyword,
-            created_at=datetime.now(UTC).isoformat(),
-            enabled=True,
-        )
-        self.alerts.append(alert)
-        self.save_alerts()
+            alert = Alert(
+                id=f"alert_{uuid.uuid4().hex[:8]}",
+                keyword=keyword,
+                created_at=datetime.now(UTC).isoformat(),
+                enabled=True,
+            )
+            self.alerts.append(alert)
+            self.save_alerts()
         return alert
 
     def remove_alert(self, alert_id: str) -> bool:
         """删除告警规则"""
-        original_count = len(self.alerts)
-        self.alerts = [a for a in self.alerts if a.id != alert_id]
-        if len(self.alerts) < original_count:
-            self.save_alerts()
-            return True
-        return False
+        with self._lock:
+            original_count = len(self.alerts)
+            self.alerts = [a for a in self.alerts if a.id != alert_id]
+            if len(self.alerts) < original_count:
+                self.save_alerts()
+                return True
+            return False
 
     def get_all_alerts(self) -> list[Alert]:
         """获取所有告警"""
@@ -200,49 +205,50 @@ class AlertManager:
 
     def toggle_alert(self, alert_id: str) -> bool:
         """切换告警状态"""
-        for alert in self.alerts:
-            if alert.id == alert_id:
-                alert.enabled = not alert.enabled
-                self.save_alerts()
-                return True
-        return False
+        with self._lock:
+            for alert in self.alerts:
+                if alert.id == alert_id:
+                    alert.enabled = not alert.enabled
+                    self.save_alerts()
+                    return True
+            return False
 
     def check_alerts(self, trends_data: dict) -> list[AlertEvent]:
-        """检查趋势数据并触发告警"""
-        new_events = []
-        enabled_alerts = self.get_enabled_alerts()
+        """检查趋势数据并触发告警
 
+        匹配阶段无共享状态（锁外执行），只收集 (类型, 告警, 条目)；
+        创建事件阶段统一在锁内执行，避免与 API 增删改并发写冲突。
+        keyword 预小写、条目小写只算一次，避免热点数据大时的重复转换。
+        """
+        enabled_alerts = self.get_enabled_alerts()
         if not enabled_alerts:
-            return new_events
+            return []
 
         hot_search = trends_data.get("hot_search", [])
         github = trends_data.get("github", [])
         tech_news = trends_data.get("tech_news", [])
 
+        matches: list[tuple[str, Alert, dict]] = []
         for alert in enabled_alerts:
             keyword = alert.keyword.lower()
-
             for item in hot_search:
-                if self._check_keyword_match(keyword, item.get("word", "")):
-                    event = self._create_event(alert, item, "hotsearch")
-                    if event:
-                        new_events.append(event)
-
+                if keyword in (item.get("word") or "").lower():
+                    matches.append(("hotsearch", alert, item))
             for item in github:
-                title = item.get("name", "") or item.get("full_name", "")
-                desc = item.get("description", "")
-                combined = f"{title} {desc}".lower()
-                if keyword in combined:
-                    event = self._create_event(alert, item, "github")
-                    if event:
-                        new_events.append(event)
-
+                title = item.get("name") or item.get("full_name") or ""
+                desc = item.get("description") or ""
+                if keyword in f"{title} {desc}".lower():
+                    matches.append(("github", alert, item))
             for item in tech_news:
-                if self._check_keyword_match(keyword, item.get("title", "")):
-                    event = self._create_event(alert, item, "tech_news")
-                    if event:
-                        new_events.append(event)
+                if keyword in (item.get("title") or "").lower():
+                    matches.append(("tech_news", alert, item))
 
+        new_events: list[AlertEvent] = []
+        with self._lock:
+            for event_type, alert, item in matches:
+                event = self._create_event(alert, item, event_type)
+                if event:
+                    new_events.append(event)
         return new_events
 
     def _check_keyword_match(self, keyword: str, text: str) -> bool:
@@ -297,11 +303,32 @@ class AlertManager:
         keyword = keyword.lower()
         return [e for e in self.history if e.keyword.lower() == keyword]
 
+    def alert_stats(self) -> dict[str, dict]:
+        """
+        聚合每个告警规则的事件统计（供 API 直接返回，前端免二次请求）
+
+        返回:
+            {alert_id: {"event_count": int, "last_triggered_at": str | None}}
+        """
+        stats: dict[str, dict] = {}
+        # history 新事件在前，首次遇到的即为该规则最近一次触发
+        for event in self.history:
+            entry = stats.get(event.alert_id)
+            if entry is None:
+                stats[event.alert_id] = {
+                    "event_count": 1,
+                    "last_triggered_at": event.triggered_at,
+                }
+            else:
+                entry["event_count"] += 1
+        return stats
+
     def clear_history(self):
         """清空告警历史"""
-        self.history = []
-        self._processed_urls.clear()
-        self.save_history()
+        with self._lock:
+            self.history = []
+            self._processed_urls.clear()
+            self.save_history()
 
 
 alert_manager = AlertManager()

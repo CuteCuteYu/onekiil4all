@@ -50,15 +50,28 @@ async def api_get_keyword_associations(keyword: str):
 
 @router.get("/api/alerts")
 async def api_get_alerts():
-    """获取所有告警规则"""
+    """获取所有告警规则（附带每个规则的事件统计）"""
     alerts = alert_manager.get_all_alerts()
-    return {"alerts": [a.to_dict() for a in alerts]}
+    stats = alert_manager.alert_stats()
+    return {
+        "alerts": [
+            {
+                **a.to_dict(),
+                "event_count": stats.get(a.id, {}).get("event_count", 0),
+                "last_triggered_at": stats.get(a.id, {}).get("last_triggered_at"),
+            }
+            for a in alerts
+        ]
+    }
 
 
 @router.post("/api/alerts")
 async def api_create_alert(request: Request):
     """创建新的告警规则"""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="请求体不是合法 JSON")
     keyword = body.get("keyword", "").strip()
     if not keyword:
         raise HTTPException(status_code=400, detail="关键词不能为空")
@@ -67,23 +80,28 @@ async def api_create_alert(request: Request):
         alert = alert_manager.add_alert(keyword)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # 广播规则变更，其他标签页收到后同步刷新
+    request.app.state.alert_broadcaster.publish({"type": "alert_updated"})
     return {"alert": alert.to_dict()}
 
 
 @router.delete("/api/alerts/{alert_id}")
-async def api_delete_alert(alert_id: str):
+async def api_delete_alert(alert_id: str, request: Request):
     """删除告警规则"""
     deleted = alert_manager.remove_alert(alert_id)
     if deleted:
+        request.app.state.alert_broadcaster.publish({"type": "alert_updated"})
         return {"deleted": True}
     raise HTTPException(status_code=404, detail="告警规则不存在")
 
 
 @router.post("/api/alerts/{alert_id}/toggle")
-async def api_toggle_alert(alert_id: str):
+async def api_toggle_alert(alert_id: str, request: Request):
     """切换告警启用/禁用状态"""
     success = alert_manager.toggle_alert(alert_id)
     if success:
+        request.app.state.alert_broadcaster.publish({"type": "alert_updated"})
         alerts = alert_manager.get_all_alerts()
         alert = next((a for a in alerts if a.id == alert_id), None)
         return {"alert": alert.to_dict() if alert else None}
@@ -125,8 +143,10 @@ async def api_alerts_stream(request: Request):
         try:
             while True:
                 try:
-                    alert_event = await asyncio.wait_for(queue.get(), timeout=30)
-                    yield sse_format({"type": "alert", "event": alert_event})
+                    # 队列事件已是完整消息(如 {"type": "alert", "event": {...}} 或
+                    # {"type": "alert_updated"}),原样转发,避免二次包装导致前端取不到字段
+                    event = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield sse_format(event)
                 except TimeoutError:
                     yield sse_format({"type": "ping"})
         finally:
@@ -208,8 +228,9 @@ async def api_rss_stream(request: Request):
         try:
             while True:
                 try:
-                    article = await asyncio.wait_for(queue.get(), timeout=30)
-                    yield sse_format({"type": "rss", "article": article})
+                    # 队列事件已是完整消息 {"type": "rss", "article": {...}},原样转发
+                    event = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield sse_format(event)
                 except TimeoutError:
                     yield sse_format({"type": "ping"})
         finally:

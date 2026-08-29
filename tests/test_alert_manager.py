@@ -92,3 +92,19 @@ def test_history_and_timeline(mgr):
     mgr.clear_history()
     assert mgr.get_history() == []
     assert mgr.get_timeline("时间线") == []
+
+
+def test_alert_stats_aggregates(mgr):
+    mgr.add_alert("统计词")
+    mgr.check_alerts(_trends(["统计词事件一", "统计词事件二"]))
+    stats = mgr.alert_stats()
+    alert = mgr.get_all_alerts()[0]
+    assert alert.id in stats
+    assert stats[alert.id]["event_count"] == 2
+    # history 新事件在前，last_triggered_at 应为最近一次
+    assert stats[alert.id]["last_triggered_at"] == mgr.history[0].triggered_at
+
+
+def test_alert_stats_empty(mgr):
+    mgr.add_alert("无事件")
+    assert mgr.alert_stats() == {}

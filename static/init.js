@@ -117,6 +117,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     const tabId = btn.dataset.tab;
     if (btn.closest('.intelligence-tabs')) {
       switchIntelligenceTab(tabId);
+      // 切到 ALERTS 标签页时清除未读告警徽标
+      if (tabId === 'alerts' && window.clearAlertUnread) {
+        clearAlertUnread();
+      }
     } else if (btn.closest('.tools-tabs')) {
       switchToolsTab(tabId);
     }

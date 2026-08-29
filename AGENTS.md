@@ -185,8 +185,17 @@ def get_or_create_session(thread_id: str | None) -> dict:
     return session
 ```
 
----
 
+### Alert Module Implementation Notes (see `web/intelligence/alert_manager.py`, `web/api/intelligence_api.py`, `static/intelligence/alerts.js`)
+
+- **Thread safety**: `AlertManager` is shared by the background check thread (`alert_checker` in `web_server.py`) and the API event-loop thread. All state mutations (`add_alert`/`remove_alert`/`toggle_alert`/`clear_history`/event creation) are serialized under `self._lock`.
+- **Two-phase `check_alerts`**: matching runs lock-free (keywords lowercased once, matches collected as `(event_type, alert, item)` tuples); event creation + history save runs inside the lock.
+- **Per-rule stats**: `alert_manager.alert_stats()` aggregates `event_count` / `last_triggered_at` per rule; `GET /api/alerts` returns these fields directly so the frontend needs no extra request.
+- **SSE events are single-layer**: broadcasters publish complete event messages (e.g. `{"type": "alert", "event": {...}}` or `{"type": "alert_updated"}`) and the `/api/alerts/stream` + `/api/rss/stream` endpoints forward the queue item **as-is**. Never re-wrap them in another envelope, or the frontend loses the `keyword`/`title` fields.
+- **Cross-tab sync**: create/delete/toggle endpoints publish `{"type": "alert_updated"}`; frontends refresh the rule list on receipt.
+- **Frontend conventions in `alerts.js`**: unread badge on the ALERTS tab (cleared when the tab is opened), new alerts are prepended to the history locally with a throttled (5s) full re-sync, and SSE reconnect (`onopen` after the first open) re-fetches rules + history to compensate missed events.
+- **JS pitfall**: never put a line break right after `return` before the expression (ASI inserts a semicolon and the function silently returns `undefined`). Use `return ( ... );`. This bug once made the alert rule list render empty.
+---
 ## Notes
 
 - Test suite lives in `tests/` (run with `uv run pytest`)
@@ -194,3 +203,4 @@ def get_or_create_session(thread_id: str | None) -> dict:
 - Follow import order: stdlib → third-party → internal
 - Keep docstrings concise but informative
 - Use `logging` instead of `print` for server-side diagnostics
+- ALERTS 前端渲染函数（`renderAlertItem` / `historyItemHtml`）的 `return` 必须紧跟表达式或使用括号换行，防止 ASI 陷阱

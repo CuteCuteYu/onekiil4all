@@ -118,10 +118,15 @@ The system includes multiple built-in tools:
 
 - **Add Monitoring**: Enter keywords in ALERTS tab to add monitoring
 - **Auto-detection**: Background task checks trending data every 30 seconds (data cached for 30s), alerts immediately on match
-- **Real-time Push**: SSE pushes new alerts to frontend instantly
-- **Event Timeline**: Click keyword to view complete alert history
-- **Persistent Storage**: Alert rules and history stored in `data/` directory
-- **Duplicate Detection**: Same keyword (case-insensitive) cannot be added, shows "already exists"
+- **Real-time Push**: SSE pushes new alerts to frontend instantly (single-layer event forwarding, fields directly readable)
+- **New-Alert Badge**: unread count badge on ALERTS tab, pulsing highlight on rule/history items, cleared when switching to the tab
+- **Rule Stats**: each rule displays trigger count and last trigger time (returned by `/api/alerts`, no extra request)
+- **Instant Local Render**: new alerts are prepended to history locally and counters updated, with a 5s throttled re-sync
+- **Reconnect Compensation**: after SSE reconnects, rules and history are re-fetched so missed alerts are not lost
+- **Multi-tab Sync**: rule changes broadcast an `alert_updated` event; other tabs refresh automatically
+- **Event Timeline**: click keyword to view complete alert history
+- **Persistent Storage**: alert rules and history stored in `data/` directory
+- **Duplicate Detection**: same keyword (case-insensitive) cannot be added, shows "already exists"
 
 ### 6. Keyword Association Analysis
 
@@ -270,7 +275,7 @@ The service provides the following REST APIs:
 | `/api/skills` | GET | Get available skills |
 | `/api/tools` | GET | Get available tools |
 | `/api/trends` | GET | Get trending and intelligence info |
-| `/api/alerts` | GET/POST | Get/create alert rules |
+| `/api/alerts` | GET/POST | Get alert rules (with trigger count & last trigger time) / create rule |
 | `/api/alerts/{id}` | DELETE | Delete alert rule |
 | `/api/alerts/{id}/toggle` | POST | Toggle alert status |
 | `/api/alerts/history` | GET | Get alert history |
@@ -315,6 +320,8 @@ Exit steps:
 
 - **Trending Data Fetching**: Uses `ThreadPoolExecutor` to fetch data from multiple platforms concurrently, reducing time from ~165 seconds (sequential) to ~2 seconds
 - **Background Alert Checking**: Uses `asyncio.to_thread()` to avoid blocking main event loop, ensuring smooth UI responsiveness
+- **Alert Matching Optimized**: keywords lowercased once and matches collected outside the lock; event creation serialized under an `AlertManager` thread lock, avoiding duplicate conversion and concurrent writes
+- **Single-Layer SSE Events**: broadcasters publish complete event messages and SSE endpoints forward them as-is (fixes the historical double-wrapping of alert/rss events)
 - **Graceful Shutdown**: Properly closes background tasks and thread pool on service stop, preventing Ctrl+C hang
 
 ### Technical Details

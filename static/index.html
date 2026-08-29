@@ -22,7 +22,7 @@
   <!-- 引入highlight.js代码高亮主题 (GitHub Dark Dimmed) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
   <!-- 引入本地自定义样式文件 -->
-  <link rel="stylesheet" href="/static/style.css?v=2">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
   <!-- 主应用容器，使用CSS Grid布局 -->
@@ -153,7 +153,7 @@
         <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/安全) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
-          <button class="tab-btn" data-tab="alerts">ALERTS</button>
+          <button class="tab-btn" data-tab="alerts">ALERTS<span class="tab-badge" id="alert-unread-badge" hidden></span></button>
           <button class="tab-btn" data-tab="links">LINKS</button>
           <button class="tab-btn" data-tab="rss">RSS</button>
           <button class="tab-btn" data-tab="security">SECURITY</button>
@@ -255,19 +255,19 @@
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
   
   <!-- 引入应用程序模块化JavaScript文件 -->
-  <script src="/static/config.js?v=2"></script>
-  <script src="/static/state.js?v=2"></script>
-  <script src="/static/dom.js?v=2"></script>
-  <script src="/static/utils.js?v=2"></script>
-  <script src="/static/chat.js?v=2"></script>
-  <script src="/static/history.js?v=2"></script>
-  <script src="/static/todo.js?v=2"></script>
-  <script src="/static/skills.js?v=2"></script>
-  <script src="/static/intelligence/trends.js?v=2"></script>
-  <script src="/static/intelligence/alerts.js?v=2"></script>
-  <script src="/static/intelligence/links.js?v=2"></script>
-  <script src="/static/intelligence/rss.js?v=2"></script>
-  <script src="/static/intelligence/security.js?v=2"></script>
-  <script src="/static/init.js?v=2"></script>
+  <script src="/static/config.js?v=3"></script>
+  <script src="/static/state.js?v=3"></script>
+  <script src="/static/dom.js?v=3"></script>
+  <script src="/static/utils.js?v=3"></script>
+  <script src="/static/chat.js?v=3"></script>
+  <script src="/static/history.js?v=3"></script>
+  <script src="/static/todo.js?v=3"></script>
+  <script src="/static/skills.js?v=3"></script>
+  <script src="/static/intelligence/trends.js?v=3"></script>
+  <script src="/static/intelligence/alerts.js?v=3"></script>
+  <script src="/static/intelligence/links.js?v=3"></script>
+  <script src="/static/intelligence/rss.js?v=3"></script>
+  <script src="/static/intelligence/security.js?v=3"></script>
+  <script src="/static/init.js?v=3"></script>
 </body>
 </html>
