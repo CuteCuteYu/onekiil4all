@@ -96,13 +96,12 @@ onekiil4all/
 │       ├── links.js          # 关联搜索
 │       ├── rss.js            # RSS订阅
 │       └── security.js       # 安全情报
-├── canvas/                   # GraphRAG Viz 源项目（独立应用，画板数据共用）
-│   ├── main.py               # 独立版 FastAPI 服务
-│   └── graphs/               # 画板目录（每个画板一个 JSON，集成版共用此目录）
 ├── data/                     # 数据存储目录（运行时生成，不入库）
 │   ├── alerts.json           # 告警规则存储
 │   ├── alert_history.json    # 告警历史记录
-│   └── rss_sources.json      # RSS订阅源存储
+│   ├── rss_sources.json      # RSS订阅源存储
+│   ├── graph_data.json       # 旧版画板单文件（迁移源）
+│   └── graphs/               # 画板目录（每个画板一个 JSON）
 ├── tests/                    # pytest 测试
 ├── prompt/                   # 提示词配置
 │   └── AGENTS.md             # Agent 系统提示
@@ -202,9 +201,9 @@ onekiil4all/
 
 ### 10. 情报画板（CANVAS / GraphRAG）
 
-集成自 GraphRAG Viz（`canvas/`），在 INTELLIGENCE 面板的 **CANVAS** 标签中使用：
+集成自 GraphRAG Viz，在 INTELLIGENCE 面板的 **CANVAS** 标签中使用：
 
-- **多画板管理**：画板以独立 JSON 文件存储（`canvas/graphs/*.json`），支持创建 / 切换 / 重命名 / 删除
+- **多画板管理**：画板以独立 JSON 文件存储（`data/graphs/*.json`），支持创建 / 切换 / 重命名 / 删除
 - **图谱可视化**：Cytoscape 力导向布局，节点自由拖拽、缩放、平移、自适应居中
 - **实体关系编辑**：添加/编辑实体（GraphRAG 描述、属性、文本溯源）、拖拽连线或手动添加关系
 - **实体类型管理**：内置 10 类情报实体（ThreatActor / Malware / Domain / IP 等），可自定义类型（名称/标签/颜色/形状）

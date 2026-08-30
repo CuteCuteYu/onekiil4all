@@ -181,9 +181,9 @@ The system includes multiple built-in tools:
 
 ### 10. Intelligence Board (CANVAS / GraphRAG)
 
-Integrated from GraphRAG Viz (`canvas/`), available in the **CANVAS** tab of the INTELLIGENCE panel:
+Integrated from GraphRAG Viz, available in the **CANVAS** tab of the INTELLIGENCE panel:
 
-- **Multi-board management**: each board is a standalone JSON file (`canvas/graphs/*.json`); create / switch / rename / delete
+- **Multi-board management**: each board is a standalone JSON file (`data/graphs/*.json`); create / switch / rename / delete
 - **Graph visualization**: Cytoscape force-directed layout, drag/zoom/pan/fit
 - **Entity & relationship editing**: add/edit entities (GraphRAG description, properties, source chunks), drag-to-connect or manual relationship creation
 - **Entity type management**: 10 built-in intel entity types (ThreatActor / Malware / Domain / IP, etc.) plus custom types (name/label/color/shape)

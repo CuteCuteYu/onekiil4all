@@ -3,9 +3,9 @@
 Graph Board - 情报分析图谱画板模块
 ========================================
 功能: 本地知识图谱可视化 + GraphRAG 数据准备
-- 画板以独立文件管理（canvas/graphs/*.json）：可创建全新空画板，也可打开已有画板继续编辑
+- 画板以独立文件管理（data/graphs/*.json）：可创建全新空画板，也可打开已有画板继续编辑
 - 当前画板载入内存，变动时按需保存（原子写回）
-- 数据目录复用 canvas/graphs（与独立 canvas 应用共用同一批画板文件）
+- 数据目录与告警/RSS 一致放在 data/（运行时数据，gitignored）
  作者: 上古必斩必杀
 """
 
@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # 旧版单文件（启动时迁移为默认画板）
-DATA_FILE = BASE_DIR / "canvas" / "graph_data.json"
+DATA_FILE = BASE_DIR / "data" / "graph_data.json"
 
-# 画板目录：每个画板一个独立 JSON 文件（与独立 canvas 应用共用）
-BOARDS_DIR = BASE_DIR / "canvas" / "graphs"
+# 画板目录：每个画板一个独立 JSON 文件
+BOARDS_DIR = BASE_DIR / "data" / "graphs"
 
 # 内存中的图数据（当前画板）
 graph_data: dict = {"types": {}, "nodes": [], "edges": []}
