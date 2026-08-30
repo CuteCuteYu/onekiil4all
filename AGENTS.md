@@ -118,7 +118,8 @@ onekiil4all/
 │   │   ├── meta_api.py       # Skills/tools routes
 │   │   ├── intelligence_api.py # Trends / associations
 │   │   ├── alert_api.py      # Alert rules / history / SSE
-│   │   └── rss_api.py        # RSS sources / articles / SSE
+│   │   ├── rss_api.py        # RSS sources / articles / SSE
+│   │   └── canvas_api.py     # Boards / graph / types / GraphRAG routes
 │   └── intelligence/         # Intelligence module
 │       ├── trends/           # Trending data package (split by responsibility)
 │       │   ├── __init__.py   # Entry (get_trends + cache)
@@ -126,6 +127,7 @@ onekiil4all/
 │       │   ├── fetchers.py   # Network fetching + concurrency
 │       │   ├── keywords.py   # Chinese/English keyword extraction
 │       │   └── associations.py # Keyword association analysis
+│       ├── graph_board.py    # Board mgmt / graph CRUD / saved-check / GraphRAG search
 │       ├── alert_manager.py  # Alert management
 │       ├── alert_models.py   # Alert data models
 │       ├── rss_manager.py    # RSS subscription store
@@ -136,7 +138,8 @@ onekiil4all/
 │   │   ├── __init__.py       # Tool list export
 │   │   ├── shell.py          # PowerShell command execution
 │   │   ├── files.py          # File read/write
-│   │   └── search.py         # Web search + RSS fetch
+│   │   ├── search.py         # Web search + RSS fetch
+│   │   └── graphrag.py       # graphrag_status + graphrag_query tools
 │   └── skill_set.py          # Skill configuration
 ├── model_set/                # Model configuration
 │   └── model_set.py          # DeepSeek model setup (fails fast without key)
@@ -234,6 +237,16 @@ def get_or_create_session(thread_id: str | None) -> dict:
 
 - **Graceful shutdown timeout**: `uvicorn.run(..., timeout_graceful_shutdown=5)` force-exits the worker after 5s even with open SSE connections. Without it, `reload=True` hot-reload hangs forever at "Waiting for connections to close" because the browser's SSE streams (`/api/rss/stream`, `/api/alerts/stream`) keep the old worker alive — every request then times out and the page spins. Never remove this timeout.
 - **UTF-8 mode auto-restart**: on Windows, `__main__` re-execs itself with `-X utf8` when `sys.flags.utf8_mode` is off. Without it, deepagents' built-in `read_file` tool and `subprocess` output decoding fail with `UnicodeDecodeError` (GBK vs UTF-8), breaking the agent loop.
+### Canvas / GraphRAG Board Integration Notes (see `web/intelligence/graph_board.py`, `web/api/canvas_api.py`, `agent_set/tools/graphrag.py`, `static/canvas.js`, `static/canvas.css`)
+
+- **Single process-wide state**: `graph_board.py` holds module-level `graph_data` / `current_board` / `_lock` (same pattern as `alert_manager`). Board data lives in `canvas/graphs/*.json` (shared with the standalone GraphRAG Viz app in `canvas/`). Body errors use `GraphBoardError(status_code)` and `canvas_api.py` converts them to `HTTPException`.
+- **API surface**: `/api/boards*`, `/api/graph`, `/api/graph/status`, `/api/types*`, `/api/node*`, `/api/edge`, `/api/save`, `/api/expand/{node_id}`, `/api/rag/context/{node_id}`. `GET /api/graph/status` returns `{board, has_board, saved, nodes, edges}` for the GraphRAG connection check.
+- **Saved-state check**: `is_board_saved()` compares in-memory data with the board file via normalized JSON serialization (`sort_keys=True`); used by both the status endpoint and the agent tool.
+- **Agent tools**: `graphrag_status` / `graphrag_query` are registered in `agent_set/tools/__init__.py` and always present. `graphrag_query` only performs a query when `is_board_saved()` is true; otherwise it returns a guidance string (never raises, compatible with `handle_tool_errors=False`). `search_graph` results are capped at `max_chars=6000` and ranked by name/type hits first. After a board switch the tools automatically follow the new current board (same global state); no agent restart needed.
+- **Frontend**: `#tab-canvas` inside `.intelligence-content`; `static/canvas.js` + `static/canvas.css` restyled to the main app aesthetic (DM Mono, `--bg/--line/--fg*` vars). `init.js` calls `window.onCanvasTabShown()` when the CANVAS tab is activated (`cy.resize()` + `fit()` — the container is `display:none` at load). `refreshGraphRagStatus()` updates `#graphrag-badge` (chat header) and `#canvas-save-badge` (toolbar); it runs after every board/graph mutation and on a 5s interval only while the page is visible.
+- **Gotchas**: only prevent the native context menu inside `#canvas-stage` (never globally — that would break the whole app). In `submitNode`, capture `wasEditing` before `resetNodeModal()` (which clears `editingNodeId`). Never start the dev server with a placeholder `ANTHROPIC_AUTH_TOKEN` (e.g. `dummy-for-smoke`) — it overrides real credentials and the model returns 401, so the agent says nothing; start with `uv run python -m web.web_server` to inherit the real env.
+- **Standalone app**: `canvas/main.py` is the independent GraphRAG Viz server (kept for reference; data is shared). Its original 2-hop RAG-context bug was fixed in the integrated `rag_context`.
+
 ### Agent Loop / Interrupt Handling Notes (see `web/api/chat_api.py`, `web/chat_handler.py`, `static/chat.js`, `agent_set/tools_set.py`)
 
 - **Context history**: `chat_stream` loads prior user/assistant messages from the JSONL store (`_load_history` → `_jsonl_to_langchain_messages`) when the in-memory history is empty, so multi-turn context survives server restarts. Never `message_history.clear()` per request.

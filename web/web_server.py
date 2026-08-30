@@ -36,6 +36,7 @@ from fastapi.staticfiles import StaticFiles
 # 导入项目内部模块
 # ═══════════════════════════════════════════════════════════════════════
 from web.api.alert_api import router as alert_router
+from web.api.canvas_api import router as canvas_router
 from web.api.chat_api import router as chat_router
 from web.api.history_api import router as history_router
 from web.api.intelligence_api import router as intelligence_router
@@ -146,6 +147,7 @@ app.include_router(meta_router)
 app.include_router(intelligence_router)
 app.include_router(alert_router)
 app.include_router(rss_router)
+app.include_router(canvas_router)
 
 
 @app.get("/")

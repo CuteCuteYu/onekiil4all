@@ -2106,3 +2106,27 @@ html, body {
   color: var(--fg);
   border-color: var(--fg-muted);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   GraphRAG 接入状态徽章（聊天头部）
+   ═══════════════════════════════════════════════════════════════ */
+
+.graphrag-badge {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--fg-dim);
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.graphrag-badge.active {
+  color: var(--fg-muted);
+  border-color: var(--line-active);
+}
+.graphrag-badge[hidden] {
+  display: none;
+}

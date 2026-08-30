@@ -1,0 +1,6 @@
+# GraphRAG Viz — 极简依赖
+# 本项目以 uv 管理环境（见 pyproject.toml / uv.lock），
+# 此文件作为兼容交付物，也可直接 pip install -r requirements.txt 使用。
+fastapi>=0.141.1
+uvicorn>=0.52.4
+networkx>=3.6.1

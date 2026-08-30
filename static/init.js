@@ -133,6 +133,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       if (tabId === 'alerts' && window.clearAlertUnread) {
         clearAlertUnread();
       }
+      // 切到 CANVAS 标签页时让图谱画布重测尺寸并自适应居中
+      if (tabId === 'canvas' && typeof window.onCanvasTabShown === 'function') {
+        window.onCanvasTabShown();
+      }
     } else if (btn.closest('.tools-tabs')) {
       switchToolsTab(tabId);
     }

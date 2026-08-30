@@ -23,6 +23,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
   <!-- 引入本地自定义样式文件 -->
   <link rel="stylesheet" href="/static/style.css?v=3">
+  <!-- 图谱画板（GraphRAG Viz）样式 -->
+  <link rel="stylesheet" href="/static/canvas.css?v=1">
 </head>
 <body>
   <!-- 主应用容器，使用CSS Grid布局 -->
@@ -95,6 +97,8 @@
         <div class="header-title">上古必斩必杀</div>
         <!-- 头部右侧区域 -->
         <div class="header-right">
+          <!-- GraphRAG 画板接入状态徽章（画板已保存时显示已接入） -->
+          <span class="graphrag-badge" id="graphrag-badge" hidden></span>
           <!-- 当前对话线程ID徽章 -->
           <span class="thread-badge" id="thread-badge"></span>
           <!-- 新建对话按钮 -->
@@ -152,13 +156,14 @@
           <!-- 刷新热点资讯按钮 -->
           <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
         </div>
-        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/安全) -->
+        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/安全/画板) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
           <button class="tab-btn" data-tab="alerts">ALERTS<span class="tab-badge" id="alert-unread-badge" hidden></span></button>
           <button class="tab-btn" data-tab="links">LINKS</button>
           <button class="tab-btn" data-tab="rss">RSS</button>
           <button class="tab-btn" data-tab="security">SECURITY</button>
+          <button class="tab-btn" data-tab="canvas">CANVAS</button>
         </div>
         <!-- 热点资讯内容区域 -->
         <div class="intelligence-content" id="intelligence-content">
@@ -244,6 +249,201 @@
               </div>
             </div>
           </div>
+          <!-- 图谱画板面板 (GraphRAG Viz 集成) -->
+          <div class="tab-panel canvas-panel" id="tab-canvas">
+            <!-- 画板选择/创建欢迎层 -->
+            <div class="canvas-modal-mask" id="welcome">
+              <div class="canvas-modal canvas-modal-wide">
+                <div class="canvas-modal-title">情报分析图谱</div>
+                <div class="canvas-modal-sub">选择或创建画板，开始情报关系分析</div>
+                <div class="canvas-welcome-create">
+                  <input type="text" id="new-board-name" placeholder="新画板名称，如：APT29 调查">
+                  <button class="canvas-btn canvas-btn-primary" onclick="createBoard()">＋ 创建新画板</button>
+                </div>
+                <div class="canvas-mini-label">已有画板</div>
+                <div id="boards-list" class="canvas-boards-list"></div>
+                <div class="canvas-modal-actions">
+                  <button class="canvas-btn" onclick="closeModal('welcome')">关闭</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 顶部工具栏 -->
+            <div class="canvas-toolbar">
+              <button class="canvas-btn" id="btn-boards" title="切换 / 新建画板">📁 <span id="board-name">—</span></button>
+              <span class="canvas-save-badge" id="canvas-save-badge" hidden></span>
+              <button class="canvas-btn" id="btn-fit" title="自适应居中">⤢ 居中</button>
+              <button class="canvas-btn" id="btn-rag" title="生成 GraphRAG 检索上下文">🧠 RAG</button>
+              <button class="canvas-btn" id="btn-types" title="自定义实体类型">⚙ 类型</button>
+              <button class="canvas-btn" id="btn-add-node" title="添加实体">＋ 实体</button>
+              <button class="canvas-btn" id="btn-add-edge" title="添加关系">⇄ 关系</button>
+              <button class="canvas-btn" id="btn-export" title="下载 GraphRAG 索引 JSON">⬇ 导出</button>
+              <button class="canvas-btn canvas-btn-primary" id="btn-save" title="持久化写回当前画板文件">💾 保存</button>
+            </div>
+
+            <!-- 画布舞台（画布 + 图例 + 抽屉 + 右键菜单 + RAG 面板） -->
+            <div class="canvas-stage" id="canvas-stage">
+              <div id="cy"></div>
+
+              <!-- 实体类型图例 -->
+              <div id="legend">
+                <div class="canvas-mini-label">实体类型图例</div>
+                <div id="legend-body"></div>
+              </div>
+
+              <!-- 右侧抽屉：实体详情 -->
+              <div id="drawer">
+                <div class="canvas-drawer-header">
+                  <span class="canvas-mini-label">实体详情</span>
+                  <div class="canvas-drawer-actions">
+                    <button id="drawer-edit" class="canvas-btn canvas-btn-sm">✎ 编辑</button>
+                    <button id="drawer-close" class="canvas-close" title="关闭">✕</button>
+                  </div>
+                </div>
+                <div id="drawer-body"></div>
+              </div>
+
+              <!-- 右键菜单 -->
+              <div id="ctxmenu"></div>
+
+              <!-- RAG 上下文面板 -->
+              <div id="ragpanel">
+                <div class="canvas-rag-header">
+                  <span class="canvas-mini-label">🧠 GraphRAG 检索上下文 <span id="rag-title"></span></span>
+                  <div class="canvas-drawer-actions">
+                    <button id="rag-copy" class="canvas-btn canvas-btn-sm">复制</button>
+                    <button id="rag-close" class="canvas-close" title="关闭">✕</button>
+                  </div>
+                </div>
+                <div id="ragtext"></div>
+              </div>
+            </div>
+
+            <!-- 添加实体/编辑实体模态框 -->
+            <div class="canvas-modal-mask" id="modal-node">
+              <div class="canvas-modal">
+                <div class="canvas-modal-title" id="modal-node-title">＋ 添加实体</div>
+                <div class="canvas-field">
+                  <label class="canvas-label">ID（可选，留空自动生成，如 ent_xxx）</label>
+                  <input type="text" id="node-id" placeholder="ent_apt29" class="canvas-input canvas-mono">
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">名称 *</label>
+                  <input type="text" id="node-name" placeholder="如：APT29" class="canvas-input">
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">类型 *</label>
+                  <select id="node-type" class="canvas-input"></select>
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">描述（GraphRAG Entity Description，用于生成 Embedding）</label>
+                  <textarea id="node-desc" placeholder="自然语言描述该实体……" class="canvas-input canvas-textarea"></textarea>
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">属性（JSON 对象，可选）</label>
+                  <textarea id="node-props" placeholder='{"alias": ["Cozy Bear"], "attribution": "俄罗斯 SVR"}' class="canvas-input canvas-textarea canvas-mono"></textarea>
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">来源片段（每行一个，可选）</label>
+                  <textarea id="node-chunks" placeholder="report_001: 微软威胁情报中心 APT29 活动报告" class="canvas-input canvas-textarea canvas-mono"></textarea>
+                </div>
+                <div class="canvas-modal-actions">
+                  <button class="canvas-btn" onclick="closeModal('modal-node')">取消</button>
+                  <button class="canvas-btn canvas-btn-primary" onclick="submitNode()">确认添加</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 添加关系模态框 -->
+            <div class="canvas-modal-mask" id="modal-edge">
+              <div class="canvas-modal">
+                <div class="canvas-modal-title">⇄ 添加关系</div>
+                <div class="canvas-field">
+                  <label class="canvas-label">ID（可选，留空自动生成）</label>
+                  <input type="text" id="edge-id" placeholder="rel_xxx" class="canvas-input canvas-mono">
+                </div>
+                <div class="canvas-field-row">
+                  <div class="canvas-field">
+                    <label class="canvas-label">源节点 *</label>
+                    <select id="edge-source" class="canvas-input"></select>
+                  </div>
+                  <div class="canvas-field">
+                    <label class="canvas-label">目标节点 *</label>
+                    <select id="edge-target" class="canvas-input"></select>
+                  </div>
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">关系动词 *（大写下划线）</label>
+                  <input type="text" id="edge-relation" placeholder="如：CONTROLS / USES / RESOLVES_TO / EXPLOITS" class="canvas-input canvas-mono">
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">描述（关系语义，用于 RAG 边上下文）</label>
+                  <textarea id="edge-desc" placeholder="描述这段关系的语义……" class="canvas-input canvas-textarea"></textarea>
+                </div>
+                <div class="canvas-field">
+                  <label class="canvas-label">权重（0.0 ~ 1.0）</label>
+                  <input type="number" id="edge-weight" min="0" max="1" step="0.05" value="0.8" class="canvas-input canvas-mono">
+                </div>
+                <div class="canvas-modal-actions">
+                  <button class="canvas-btn" onclick="closeModal('modal-edge')">取消</button>
+                  <button class="canvas-btn canvas-btn-primary" onclick="submitEdge()">确认添加</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 类型管理模态框 -->
+            <div class="canvas-modal-mask" id="modal-types">
+              <div class="canvas-modal">
+                <div class="canvas-modal-title">⚙ 实体类型管理</div>
+                <div id="types-list" class="canvas-types-list"></div>
+                <div class="canvas-types-custom">
+                  <div class="canvas-mini-label">＋ 自定义新类型</div>
+                  <div class="canvas-field-row canvas-field-row-4">
+                    <div class="canvas-field">
+                      <label class="canvas-label">类型名 *（英文标识）</label>
+                      <input type="text" id="type-name" class="canvas-input canvas-mono" placeholder="Person">
+                    </div>
+                    <div class="canvas-field">
+                      <label class="canvas-label">显示标签</label>
+                      <input type="text" id="type-label" class="canvas-input" placeholder="人物">
+                    </div>
+                    <div class="canvas-field">
+                      <label class="canvas-label">颜色</label>
+                      <input type="color" id="type-color" value="#22d3ee" class="canvas-input canvas-color">
+                    </div>
+                    <div class="canvas-field">
+                      <label class="canvas-label">形状</label>
+                      <select id="type-shape" class="canvas-input">
+                        <option value="ellipse">ellipse 圆形</option>
+                        <option value="round-rectangle">round-rectangle 圆角方形</option>
+                        <option value="rectangle">rectangle 方形</option>
+                        <option value="diamond">diamond 菱形</option>
+                        <option value="hexagon">hexagon 六边形</option>
+                        <option value="octagon">octagon 八边形</option>
+                        <option value="star">star 星形</option>
+                        <option value="triangle">triangle 三角形</option>
+                        <option value="pentagon">pentagon 五边形</option>
+                        <option value="round-tag">round-tag 圆标签</option>
+                        <option value="round-hexagon">round-hexagon 圆六边形</option>
+                        <option value="barrel">barrel 桶形</option>
+                        <option value="rhombus">rhombus 菱形</option>
+                        <option value="tag">tag 标签</option>
+                        <option value="plus">plus 加号</option>
+                        <option value="cross">cross 叉号</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="canvas-modal-actions">
+                    <button class="canvas-btn" onclick="closeModal('modal-types')">关闭</button>
+                    <button class="canvas-btn canvas-btn-primary" onclick="submitType()">添加类型</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toast -->
+            <div id="toast"></div>
+          </div>
         </div>
       </div>
     </aside>
@@ -256,6 +456,8 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
   <!-- highlight.js - 代码高亮库（官方 cdn-release 构建；npm 包内无 highlight.min.js） -->
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+  <!-- cytoscape.js - 图谱画布渲染库 -->
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
   
   <!-- 引入应用程序模块化JavaScript文件 -->
   <script src="/static/config.js?v=3"></script>
@@ -271,6 +473,7 @@
   <script src="/static/intelligence/links.js?v=3"></script>
   <script src="/static/intelligence/rss.js?v=3"></script>
   <script src="/static/intelligence/security.js?v=3"></script>
+  <script src="/static/canvas.js?v=1"></script>
   <script src="/static/init.js?v=3"></script>
 </body>
 </html>

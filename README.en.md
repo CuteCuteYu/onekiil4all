@@ -125,6 +125,10 @@ The system includes multiple built-in tools:
 | read_binary_file | Read binary file content |
 | fetch_rss_feed | Fetch and parse RSS/Atom feeds |
 | web_search | Search the web using DuckDuckGo |
+| graphrag_status | Check current intelligence board status (board name / saved state / counts) |
+| graphrag_query | GraphRAG search of current board entities (name/type/description/properties/sources) |
+
+> Note: `graphrag_query` only works when the current board is **saved**; otherwise it returns guidance. Agent queries follow the current board automatically after switching.
 
 ### 4. Intelligence Panel
 
@@ -174,6 +178,19 @@ The system includes multiple built-in tools:
 - **WHOIS Query**: Query domain registration info (links to Chinaz)
 - **CVE Lookup**: Query CVE vulnerability details (Aliyun AVD)
 - **Site Security**: Check website security status (links to Chinaz)
+
+### 10. Intelligence Board (CANVAS / GraphRAG)
+
+Integrated from GraphRAG Viz (`canvas/`), available in the **CANVAS** tab of the INTELLIGENCE panel:
+
+- **Multi-board management**: each board is a standalone JSON file (`canvas/graphs/*.json`); create / switch / rename / delete
+- **Graph visualization**: Cytoscape force-directed layout, drag/zoom/pan/fit
+- **Entity & relationship editing**: add/edit entities (GraphRAG description, properties, source chunks), drag-to-connect or manual relationship creation
+- **Entity type management**: 10 built-in intel entity types (ThreatActor / Malware / Domain / IP, etc.) plus custom types (name/label/color/shape)
+- **Intel drill-down**: click a node for full details; right-click to 1-hop expand, generate RAG context, or delete
+- **GraphRAG retrieval**: generate 1~2 hop semantic triplets Prompt Context and export standard GraphRAG index (MS GraphRAG / LlamaIndex compatible)
+- **Saved-state check**: chat header shows `● GRAPH RAG · board` (saved/connected) or `○ not saved`; board toolbar shows saved/unsaved badge
+- **Agent auto-connect**: once the board is **saved**, the Agent gains `graphrag_status` / `graphrag_query` tools to answer questions about board entities; if unsaved, it prompts you to save first
 
 ### 9. Frontend Features
 
@@ -315,6 +332,20 @@ The service provides the following REST APIs:
 | `/api/rss/{id}/toggle` | POST | Enable/disable RSS source |
 | `/api/rss/articles` | GET | Get all RSS sources latest articles |
 | `/api/rss/stream` | GET | SSE RSS article stream (real-time push) |
+| `/api/boards` | GET/POST | List boards & current board / create empty board |
+| `/api/boards/open` | POST | Open a board and load into memory |
+| `/api/boards/rename` | POST | Rename a board |
+| `/api/boards/{name}` | DELETE | Delete a board (auto-switch if deleting current) |
+| `/api/graph` | GET | Read current board graph data |
+| `/api/graph/status` | GET | Board status (opened / saved / node & edge counts, for GraphRAG connection) |
+| `/api/types` | GET/POST | Get all entity types / upsert custom type |
+| `/api/types/{type_name}` | DELETE | Delete custom type (built-ins protected) |
+| `/api/expand/{node_id}` | GET | 1-hop neighbor subgraph |
+| `/api/node` | POST | Create / update node |
+| `/api/node/{node_id}` | DELETE | Delete node with cascade edge cleanup |
+| `/api/edge` | POST | Create / update relationship |
+| `/api/save` | POST | Persist current board to file |
+| `/api/rag/context/{node_id}` | GET | 1~2 hop semantic triplets + entity descriptions (Prompt Context) |
 
 ## RSS Subscription Feature
 

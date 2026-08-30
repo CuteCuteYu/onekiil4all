@@ -8,7 +8,9 @@ AI 智能助手 - 基于 LangChain + Anthropic 兼容模型构建
 
 - **智能对话**：Anthropic 协议兼容的大语言模型（Claude / GLM 等）
 - **任务管理**：自动生成和管理 TODO 列表
-- **工具调用**：支持多种工具（文件操作、命令执行等）
+- **工具调用**：支持多种工具（文件操作、命令执行、图谱查询等）
+- **情报画板**：本地知识图谱可视化 + GraphRAG 数据准备（多画板管理、实体关系编辑、一键导出索引）
+- **GraphRAG 对话**：画板保存后 Agent 自动接入图谱检索工具，可直接问答画板中的实体关系
 - **Web 界面**：现代化的响应式前端界面
 
 ## 技术栈
@@ -46,7 +48,8 @@ onekiil4all/
 │   │   ├── meta_api.py       # 技能/工具路由
 │   │   ├── intelligence_api.py # 热点资讯/关联分析
 │   │   ├── alert_api.py      # 告警规则/历史/SSE
-│   │   └── rss_api.py        # RSS 订阅/文章/SSE
+│   │   ├── rss_api.py        # RSS 订阅/文章/SSE
+│   │   └── canvas_api.py     # 情报画板/图谱/类型/GraphRAG 路由
 │   └── intelligence/         # 情报模块
 │       ├── trends/           # 热点数据包（按职责拆分）
 │       │   ├── __init__.py   # 主入口（get_trends + 缓存）
@@ -54,6 +57,7 @@ onekiil4all/
 │       │   ├── fetchers.py   # 网络抓取与并发调度
 │       │   ├── keywords.py   # 中英文关键词提取
 │       │   └── associations.py # 关键词关联分析
+│       ├── graph_board.py    # 画板管理/图谱 CRUD/已保存检查/GraphRAG 检索
 │       ├── alert_manager.py  # 告警管理
 │       ├── alert_models.py   # 告警数据模型
 │       ├── rss_manager.py    # RSS 订阅管理
@@ -64,13 +68,15 @@ onekiil4all/
 │   │   ├── __init__.py       # 工具列表导出
 │   │   ├── shell.py          # PowerShell 命令执行
 │   │   ├── files.py          # 文件读写
-│   │   └── search.py         # 网络搜索与 RSS 获取
+│   │   ├── search.py         # 网络搜索与 RSS 获取
+│   │   └── graphrag.py       # 画板状态检查 + GraphRAG 检索工具
 │   └── skill_set.py          # 技能配置
 ├── model_set/                # 模型配置
 │   └── model_set.py          # 模型配置（读 ANTHROPIC_* 环境变量，缺凭据启动即报错）
 ├── static/                   # 前端静态资源
 │   ├── index.html            # 主页面
 │   ├── style.css             # 样式文件
+│   ├── canvas.css            # 情报画板样式（与主应用风格统一）
 │   ├── config.js             # 配置和常量
 │   ├── state.js              # 全局状态
 │   ├── dom.js                # DOM元素缓存
@@ -79,6 +85,7 @@ onekiil4all/
 │   ├── history.js            # 历史记录
 │   ├── todo.js               # 待办事项
 │   ├── skills.js             # 技能/工具
+│   ├── canvas.js             # 情报画板（Cytoscape 图谱可视化 + 状态刷新）
 │   ├── init.js               # 初始化和事件绑定
 │   ├── alert.html            # 告警详情页
 │   ├── alert.js              # 告警详情页逻辑
@@ -89,6 +96,9 @@ onekiil4all/
 │       ├── links.js          # 关联搜索
 │       ├── rss.js            # RSS订阅
 │       └── security.js       # 安全情报
+├── canvas/                   # GraphRAG Viz 源项目（独立应用，画板数据共用）
+│   ├── main.py               # 独立版 FastAPI 服务
+│   └── graphs/               # 画板目录（每个画板一个 JSON，集成版共用此目录）
 ├── data/                     # 数据存储目录（运行时生成，不入库）
 │   ├── alerts.json           # 告警规则存储
 │   ├── alert_history.json    # 告警历史记录
@@ -128,6 +138,10 @@ onekiil4all/
 | read_binary_file | 读取二进制文件内容 |
 | fetch_rss_feed | 获取并解析 RSS/Atom 订阅源 |
 | web_search | 使用 DuckDuckGo 搜索网络 |
+| graphrag_status | 检查当前情报画板接入状态（画板名/是否已保存/节点关系数） |
+| graphrag_query | GraphRAG 检索当前画板实体（名称/类型/描述/属性/来源），返回实体详情与关联关系 |
+
+> 说明：`graphrag_query` 仅在当前画板处于「已保存」状态时可用；未保存时返回引导提示。画板切换后 Agent 查询自动跟随当前画板。
 
 ### 4. 情报分析面板
 
@@ -185,6 +199,19 @@ onekiil4all/
 - **左侧边栏**：显示 HISTORY + TODO + CAPABILITIES
 - **右侧边栏**：INTELLIGENCE 情报面板（占据 50% 宽度）
 - **聊天区域**：占据 33% 宽度
+
+### 10. 情报画板（CANVAS / GraphRAG）
+
+集成自 GraphRAG Viz（`canvas/`），在 INTELLIGENCE 面板的 **CANVAS** 标签中使用：
+
+- **多画板管理**：画板以独立 JSON 文件存储（`canvas/graphs/*.json`），支持创建 / 切换 / 重命名 / 删除
+- **图谱可视化**：Cytoscape 力导向布局，节点自由拖拽、缩放、平移、自适应居中
+- **实体关系编辑**：添加/编辑实体（GraphRAG 描述、属性、文本溯源）、拖拽连线或手动添加关系
+- **实体类型管理**：内置 10 类情报实体（ThreatActor / Malware / Domain / IP 等），可自定义类型（名称/标签/颜色/形状）
+- **情报下钻**：单击节点查看完整信息，右键展开 1 跳邻居、生成 RAG 上下文、删除节点
+- **GraphRAG 检索**：一键生成 1~2 跳子图语义三元组 Prompt Context，导出标准 GraphRAG 索引（兼容 MS GraphRAG / LlamaIndex）
+- **保存状态检查**：聊天头部实时显示 `● GRAPH RAG · 画板名`（已保存/已接入）或 `○ 未保存`，画板工具栏显示 `已保存/未保存` 徽标
+- **Agent 自动接入**：画板「已保存」后，Agent 自动获得 `graphrag_status` / `graphrag_query` 工具，可直接回答画板中的实体关系问题；未保存时提示先保存
 
 ## 快速开始
 
@@ -332,6 +359,20 @@ model = ChatAnthropic(
 | `/api/rss/{id}/toggle` | POST | 启用/禁用 RSS 源 |
 | `/api/rss/articles` | GET | 获取所有 RSS 源最新文章 |
 | `/api/rss/stream` | GET | SSE RSS 文章流（实时推送） |
+| `/api/boards` | GET/POST | 列出所有画板及当前画板 / 创建空画板 |
+| `/api/boards/open` | POST | 打开指定画板并载入内存 |
+| `/api/boards/rename` | POST | 重命名画板 |
+| `/api/boards/{name}` | DELETE | 删除画板（删除当前画板自动切换） |
+| `/api/graph` | GET | 读取当前画板图数据 |
+| `/api/graph/status` | GET | 当前画板状态（是否已打开/已保存/节点关系数，用于 GraphRAG 接入判定） |
+| `/api/types` | GET/POST | 获取全部实体类型 / 新增或更新自定义类型 |
+| `/api/types/{type_name}` | DELETE | 删除自定义类型（内置类型不可删） |
+| `/api/expand/{node_id}` | GET | 1 跳邻居子图 |
+| `/api/node` | POST | 新增 / 更新节点 |
+| `/api/node/{node_id}` | DELETE | 删除节点并级联清理关联边 |
+| `/api/edge` | POST | 新增 / 更新关系 |
+| `/api/save` | POST | 持久化写回当前画板文件 |
+| `/api/rag/context/{node_id}` | GET | 提取 1~2 跳子图语义三元组 + 实体描述（Prompt Context） |
 
 ## RSS 订阅功能
 
@@ -408,6 +449,10 @@ A: 支持 Anthropic 协议的平台均可（Anthropic 官方、智谱 open.bigmo
 ### Q: 为什么工具调用失败？
 
 A: 检查 PowerShell 是否可用，以及命令是否有权限执行。
+
+### Q: 聊天没有回答 / 提示 401？
+
+A: 模型认证失败。请确认启动服务时使用的是真实 `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`（不要在启动命令里覆盖成占位符），或创建 `.env` 文件配置后重启。画板功能（画布/保存/GraphRAG 接入徽标）不依赖模型凭据，但 Agent 对话需要有效凭据。
 
 ### Q: 如何修改模型？
 
