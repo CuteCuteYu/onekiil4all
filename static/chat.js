@@ -50,6 +50,7 @@ async function sendMessage(text) {
     let messageContent = '';
     let segmentBase = 0;
     let metadata = null;
+    let hadError = false;
 
     removeLoadingMessage();
 
@@ -81,12 +82,14 @@ async function sendMessage(text) {
                 completed: '任务已完成',
                 max_iterations: `已达最大迭代次数(${event.iterations}次)`,
                 no_next_action: '无下一步操作',
+                no_progress: '未检测到进展，已停止',
                 no_todo: '无任务清单'
               };
               const msg = reasons[event.reason] || '处理完成';
               appendProgressMessage(msg, event.reason === 'completed' ? 'success' : 'info');
             } else if (event.type === 'tool_call') {
-              appendProgressMessage(`[工具] ${event.name}: ${event.status}`, 'info');
+              const level = event.status && event.status.startsWith('✗') ? 'error' : 'info';
+              appendProgressMessage(`[工具] ${event.name}: ${event.status}`, level);
             } else if (event.type === 'segment_start') {
               // 新的一段AI回复开始（工具调用后的新一轮或自动迭代）
               ensureStreamingMessage();
@@ -101,6 +104,12 @@ async function sendMessage(text) {
               const streamEl = ensureStreamingMessage();
               messageContent = messageContent.slice(0, segmentBase) + event.content;
               renderMarkdown(streamEl.querySelector('.msg-body'), messageContent);
+            } else if (event.type === 'error') {
+              // 后端错误（401/超时等）必须显式展示，否则用户会以为“完全没反应”
+              hadError = true;
+              appendProgressMessage(`错误: ${event.message || '未知错误'}`, 'error');
+            } else if (event.type === 'note') {
+              appendProgressMessage(event.content, 'success');
             } else if (event.type === 'done') {
               metadata = event.metadata;
             }
@@ -112,6 +121,9 @@ async function sendMessage(text) {
     removeStreamingMessage();
     if (messageContent) {
       renderMessage('assistant', messageContent, metadata);
+    } else if (!hadError) {
+      // 没有任何回复也没有报错时，给出明确提示而不是默默什么都不显示
+      appendProgressMessage('模型未返回任何内容，请检查模型配置或稍后重试', 'warning');
     }
 
   } catch (e) {

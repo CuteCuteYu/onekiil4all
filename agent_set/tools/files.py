@@ -10,20 +10,26 @@ from pathlib import Path
 
 from langchain_core.tools import tool
 
+# 项目根目录：相对路径统一锚定到这里，
+# 与 Agent 内置文件工具的 FilesystemBackend(root_dir=项目根) 保持一致
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 @tool
 def write_file(filename: str, content: str) -> str:
     """
-    在当前工作目录下创建文件并写入内容。如果文件已存在则覆盖
+    在项目根目录下创建文件并写入内容。如果文件已存在则覆盖
 
     参数:
-        filename: 文件名（相对路径，基于当前工作目录）
+        filename: 文件名（相对路径基于项目根目录，也支持绝对路径）
         content: 要写入文件的内容
 
     返回:
         写入成功的确认信息，包含文件的绝对路径
     """
-    filepath = Path.cwd() / filename
+    filepath = Path(filename)
+    if not filepath.is_absolute():
+        filepath = _PROJECT_ROOT / filename
     filepath.parent.mkdir(parents=True, exist_ok=True)
     filepath.write_text(content, encoding="utf-8")
     return f"文件已写入: {filepath}"
@@ -43,7 +49,7 @@ def read_text_file(filename: str, encoding: str = "utf-8") -> str:
     """
     filepath = Path(filename)
     if not filepath.is_absolute():
-        filepath = Path.cwd() / filename
+        filepath = _PROJECT_ROOT / filename
 
     try:
         content = filepath.read_text(encoding=encoding)
@@ -91,7 +97,7 @@ def read_binary_file(
     """
     filepath = Path(filename)
     if not filepath.is_absolute():
-        filepath = Path.cwd() / filename
+        filepath = _PROJECT_ROOT / filename
 
     try:
         data = filepath.read_bytes()

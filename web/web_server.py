@@ -183,10 +183,13 @@ if __name__ == "__main__":
     # 默认只绑定本机回环地址；如需局域网访问设置 HOST=0.0.0.0
     # timeout_graceful_shutdown: 优雅关闭超时(秒)。SSE 长连接会让 reload 重载
     # 时旧 worker 永远等不到连接关闭而卡死, 加超时强制退出避免该问题
+    # RELOAD=0 可关闭热重载（排查 Ctrl+C 无法退出、或部署到服务器时使用）
+    reload_enabled = os.environ.get("RELOAD", "1").lower() not in ("0", "false", "no")
+
     uvicorn.run(
         "web.web_server:app",
         host=os.environ.get("HOST", "127.0.0.1"),
         port=int(os.environ.get("PORT", "8000")),
-        reload=True,
+        reload=reload_enabled,
         timeout_graceful_shutdown=5,
     )

@@ -63,14 +63,16 @@ onekiil4all/
 │       ├── rss_manager.py    # RSS 订阅管理
 │       └── rss_parser.py     # RSS/Atom 公共解析
 ├── agent_set/                # Agent 组件
-│   ├── agent_set.py          # Agent 创建
+│   ├── agent_set.py          # Agent 创建（FilesystemBackend + 技能/记忆/MCP 装配）
+│   ├── mcp_set.py            # MCP 配置加载与工具挂载（读项目内 mcp/mcp.json）
 │   ├── tools/                # 工具集包（按职责拆分）
 │   │   ├── __init__.py       # 工具列表导出
 │   │   ├── shell.py          # PowerShell 命令执行
-│   │   ├── files.py          # 文件读写
+│   │   ├── files.py          # 文件读写（相对路径锚定项目根）
 │   │   ├── search.py         # 网络搜索与 RSS 获取
-│   │   └── graphrag.py       # 画板状态检查 + GraphRAG 检索工具
-│   └── skill_set.py          # 技能配置
+│   │   ├── graphrag.py       # 画板状态检查 + GraphRAG 检索工具
+│   │   └── todo.py           # 任务清单读取/更新工具
+│   └── skill_set.py          # 技能加载（读项目内 skills/）
 ├── model_set/                # 模型配置
 │   └── model_set.py          # 模型配置（读 ANTHROPIC_* 环境变量，缺凭据启动即报错）
 ├── static/                   # 前端静态资源
@@ -104,8 +106,15 @@ onekiil4all/
 │   └── graphs/               # 画板目录（每个画板一个 JSON）
 ├── tests/                    # pytest 测试
 ├── prompt/                   # 提示词配置
-│   └── AGENTS.md             # Agent 系统提示
+│   └── AGENTS.md             # Agent 系统提示（memory，直接从磁盘读取）
+├── skills/                   # 项目内技能目录（每个技能一个文件夹 + SKILL.md）
+│   └── osint-recon/          # 内置：OSINT 情报搜集流程（提到“搜集/搜索/调查”等触发）
+├── mcp/                      # 项目内 MCP 配置（不读 Claude Code/Desktop 全局配置）
+│   ├── mcp.json              # MCP 服务器列表（web / ddg，已实测可用）
+│   └── README.md             # 配置格式 + 国内网络注意事项 + 实测清单
 ├── chat_history/             # 对话历史存储（JSONL，运行时生成，不入库）
+├── start.bat / stop.bat      # Windows 启动 / 停止脚本
+├── start.sh / stop.sh        # Linux / macOS 启动 / 停止脚本
 ├── pyproject.toml            # 项目配置
 └── README.md                 # 项目文档
 ```
@@ -212,6 +221,21 @@ onekiil4all/
 - **保存状态检查**：聊天头部实时显示 `● GRAPH RAG · 画板名`（已保存/已接入）或 `○ 未保存`，画板工具栏显示 `已保存/未保存` 徽标
 - **Agent 自动接入**：画板「已保存」后，Agent 自动获得 `graphrag_status` / `graphrag_query` 工具，可直接回答画板中的实体关系问题；未保存时提示先保存
 
+### 11. 项目内技能（Skills）与 MCP 工具
+
+**技能（Skills）**：放在项目内 `skills/` 目录（不再依赖 Claude Code 的 `~/.claude/skills`，可用 `SKILLS_DIR` 环境变量覆盖）。每个技能是一个文件夹 + `SKILL.md`；Agent 先只看到「名称 + description」，命中后才读取正文（渐进式披露）。内置 `skills/osint-recon/`：面向公开信息收集的情报流程，用户提到“搜集/搜索/查找/调查/情报”等词时触发。
+
+**MCP 工具**：配置文件为项目内 `mcp/mcp.json`（不读 `~/.claude.json` / `claude_desktop_config.json`）。当前已启用并实测可用：
+
+| 服务器 | 命令 | 提供的工具 |
+|---|---|---|
+| `web` | `uvx mcp-server-fetch` | `web_fetch`（抓取网页正文，默认遵守 robots.txt） |
+| `ddg` | `uvx duckduckgo-mcp-server` | `ddg_search` / `ddg_fetch_content` / `ddg_expand_link` |
+
+工具名带服务器前缀（`<server>_<tool>`）。可用 `GET /api/mcp` 查看配置，详见 `mcp/README.md`。
+
+**文件工具**：Agent 使用 `FilesystemBackend`（锚定项目根），因此内置的 `ls / read_file / write_file / edit_file / glob / grep / delete` 全部作用于**真实磁盘**，写入的文件可立即被读取/编辑/检索。
+
 ## 快速开始
 
 ### 环境要求
@@ -253,7 +277,23 @@ ANTHROPIC_BASE_URL=https://open.bigmodel.cn/api/anthropic
 ANTHROPIC_MODEL=GLM-4.7
 ```
 
-4. 启动服务：
+4. 启动服务（任选一种）：
+
+**方式 A：启动脚本（推荐，自动检查 uv / 凭据 / 依赖）**
+
+```bash
+# Windows：双击 start.bat，或在命令行执行
+start.bat
+
+# Linux / macOS
+chmod +x start.sh   # 首次需要
+./start.sh
+# 若不想改权限，也可以：bash start.sh
+```
+
+脚本可选指定端口：`start.bat 8080` / `./start.sh 8080`。
+
+**方式 B：直接运行**
 
 ```bash
 uv run python -m web.web_server
@@ -262,6 +302,22 @@ uv run python -m web.web_server
 5. 访问界面：
 
 打开浏览器访问 `http://localhost:8000`
+
+6. 停止服务：
+
+在服务所在的终端按 `Ctrl+C`。如果按了没反应（Windows 上常见：`uv run` 的包装进程会吞掉信号，uvicorn 的 reloader 派生出的 worker 也可能变成孤儿继续占端口）：
+
+```bash
+# Windows
+stop.bat            # 默认停止 8000 端口；stop.bat 8080 指定端口
+
+# Linux / macOS
+./stop.sh           # 或 bash stop.sh
+```
+
+> 启动脚本**直接用 `.venv` 里的解释器**（不再套 `uv run`），并**默认关闭热重载（`RELOAD=0`）**。
+> 需要热重载时：`set RELOAD=1`（Windows）/ `export RELOAD=1`（Linux/macOS）；
+> 直接 `uv run python -m web.web_server` 启动时仍默认开启热重载。
 
 ## 使用指南
 
@@ -395,7 +451,9 @@ curl -X POST http://localhost:8000/api/rss \
 
 服务配置了 `timeout_graceful_shutdown=5`（5 秒优雅关闭超时），即使浏览器保持 SSE 长连接，Ctrl+C 后也会在超时后强制退出，不会卡住。
 
-> **热重载说明**：开发模式 `reload=True` 下，修改代码触发自动重载。由于 SSE 长连接会让旧 worker 无法优雅关闭，优雅关闭超时确保重载在 5 秒内完成，避免服务卡死（历史上曾因 SSE 连接导致重载无限等待、页面转圈）。
+> **停止不掉的兜底**：若 Ctrl+C 无效，执行 `stop.bat` / `./stop.sh`。它会同时结束「占用该端口的进程」和「命令行含 `web.web_server` 的进程」，并在结束后轮询确认端口已释放。
+
+> **热重载说明**：`reload=True` 下修改代码会触发自动重载。由于 SSE 长连接会让旧 worker 无法优雅关闭，优雅关闭超时确保重载在 5 秒内完成，避免服务卡死（历史上曾因 SSE 连接导致重载无限等待、页面转圈）。启动脚本默认 `RELOAD=0`（关闭热重载），以避免 reloader 派生 worker 在异常中断后变成孤儿进程占住端口。
 
 ## 性能优化
 
@@ -437,7 +495,7 @@ shutdown_executor()
 uv run pytest
 ```
 
-覆盖 TODO Markdown 解析、告警关键词匹配/去重、RSS/Atom 解析等纯函数逻辑。
+覆盖 TODO Markdown 解析、告警关键词匹配/去重、RSS/Atom 解析、MCP 配置解析、技能目录规范等纯函数逻辑（当前 66 项）。
 
 ## 常见问题
 
@@ -452,6 +510,17 @@ A: 检查 PowerShell 是否可用，以及命令是否有权限执行。
 ### Q: 聊天没有回答 / 提示 401？
 
 A: 模型认证失败。请确认启动服务时使用的是真实 `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`（不要在启动命令里覆盖成占位符），或创建 `.env` 文件配置后重启。画板功能（画布/保存/GraphRAG 接入徽标）不依赖模型凭据，但 Agent 对话需要有效凭据。
+
+### Q: 按 Ctrl+C 停不掉服务？
+
+A: Windows 上常见，原因是多了一层进程：`uv run` 的包装进程会吞掉 Ctrl+C；uvicorn 的 `reload=True` 会派生 worker，父进程被打断后 worker 可能变成孤儿（端口 owner 指向已死的父 PID）。处理方式：
+
+1. 用启动脚本（`start.bat` / `start.sh`）——它们直接调用 `.venv` 的解释器，且默认 `RELOAD=0`；
+2. 仍然停不掉时执行 `stop.bat` / `./stop.sh`：它会按「端口占用者 + 命令行含 web.web_server」双重规则结束进程，并确认端口已释放。
+
+### Q: 前端什么都不显示 / 看不到回答？
+
+A: 现在后端错误（401、超时等）会在聊天区以红色 `错误: ...` 明确显示，不会再静默无反应。若看到 401，请检查启动服务的终端里 `ANTHROPIC_AUTH_TOKEN` 是否有效（不要用占位符启动）。
 
 ### Q: 如何修改模型？
 

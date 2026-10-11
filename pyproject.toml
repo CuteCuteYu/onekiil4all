@@ -8,6 +8,7 @@ dependencies = [
     "langchain-anthropic>=0.3.0",
     "langchain-community>=0.3.0",
     "langchain-core>=0.3.0",
+    "langchain-mcp-adapters>=0.3.0",
     "requests>=2.31.0",
     "deepagents>=0.5.0",
     "fastapi>=0.135.2",
@@ -23,6 +24,12 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.8",
 ]
+
+[[tool.uv.index]]
+# 国内 PyPI 镜像：避免 uv 解析/同步依赖时因网络问题长时间卡住
+name = "tuna"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

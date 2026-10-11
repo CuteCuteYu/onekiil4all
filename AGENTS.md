@@ -19,12 +19,23 @@ This file provides guidelines for AI agents working on this codebase.
 ```bash
 uv sync
 ```
+> `pyproject.toml` pins the TUNA PyPI mirror (`[[tool.uv.index]]` with `default = true`) so `uv lock` / `uv sync` don't hang on a slow network. If you add a dependency, run `uv lock && uv sync` (or just let the next `uv run` re-resolve — it's fast now). Bypass uv entirely with `.venv\Scripts\python.exe` if ever needed.
 
 ### Run Development Server
 ```bash
+# Option A: launcher scripts (checks uv / credentials / deps, then starts)
+start.bat                 # Windows (double-click works too)
+./start.sh                # Linux / macOS (chmod +x first)
+
+# Stopping: Ctrl+C in that window. If that fails, kill whatever holds the port:
+stop.bat                  # Windows
+./stop.sh                 # Linux / macOS
+
+# Option B: run directly
 uv run python -m web.web_server
 ```
 Then access `http://localhost:8000`
+> `start.bat` messages are intentionally **ASCII-only** — non-ASCII text in a `.bat` is decoded with the active Windows code page and can be garbled or even executed as a command. `start.sh` (UTF-8, LF) prints Chinese. Both accept an optional port argument and never overwrite existing `ANTHROPIC_*` env vars. The launchers call `.venv`'s Python **directly** instead of `uv run` (the extra wrapper process can swallow Ctrl+C on Windows, leaving the server unkillable); `stop.bat` / `stop.sh` force-stop whatever is LISTENING on the port (plus any process whose command line contains `web.web_server`), then poll until the port is actually free. The launchers set `RELOAD=0` by default (uvicorn's reloader spawns a worker that can survive as an orphan on Windows and keep holding the port); `uv run python -m web.web_server` still defaults to reload on.
 
 ### Linting (Ruff)
 ```bash
@@ -139,8 +150,10 @@ onekiil4all/
 │   │   ├── shell.py          # PowerShell command execution
 │   │   ├── files.py          # File read/write
 │   │   ├── search.py         # Web search + RSS fetch
-│   │   └── graphrag.py       # graphrag_status + graphrag_query tools
-│   └── skill_set.py          # Skill configuration
+│   │   ├── graphrag.py       # graphrag_status + graphrag_query tools
+│   │   └── todo.py           # read_todo + update_todo tools
+│   ├── mcp_set.py           # Project-local MCP config loader (mcp/mcp.json)
+│   └── skill_set.py          # Skill configuration (project-local skills/)
 ├── model_set/                # Model configuration
 │   └── model_set.py          # DeepSeek model setup (fails fast without key)
 ├── static/                   # Frontend (HTML/CSS/JS)
@@ -166,8 +179,12 @@ onekiil4all/
 │       └── security.js     # Security intelligence
 ├── tests/                    # pytest tests
 ├── data/                     # Runtime data storage (generated, gitignored)
-├── prompt/                   # Agent prompts
+├── prompt/                   # Agent memory / system prompt (AGENTS.md)
+├── skills/                   # Project-local skills (one folder per skill, SKILL.md)
+├── mcp/                      # Project-local MCP config (mcp.json)
 ├── chat_history/             # Conversation history (runtime, gitignored)
+├── start.bat / stop.bat      # Windows launcher / stopper (ASCII-only messages)
+├── start.sh / stop.sh        # Linux / macOS launcher / stopper (UTF-8, LF)
 └── pyproject.toml            # Project config
 ```
 
@@ -177,6 +194,9 @@ onekiil4all/
 
 - **Environment Variables**: `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY` (required), `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` - Model config read from ANTHROPIC_* env vars
 - **TODO Auto-Creation**: Messages >= 20 characters trigger automatic TODO generation
+- **Project-local skills, MCP & real-disk files**: the agent uses `FilesystemBackend(root_dir=<repo>, virtual_mode=True)`, so its built-in file tools (`ls/read_file/write_file/edit_file/delete/glob/grep`) operate on the **real disk**, with `/` mapped to the repo root (traversal `..`/`~` blocked). Skills are read from the repo's `skills/` (`skills=["/skills/"]`; `agent_set/skill_set.py` → `SKILLS_DIR = <repo>/skills`, env `SKILLS_DIR` overrides) and memory from `prompt/AGENTS.md` — both straight from disk, no store seeding. The old `~/.claude/skills` source and the `StoreBackend` are gone. MCP servers come from the repo's `mcp/mcp.json` (`agent_set/mcp_set.py` → `MCP_CONFIG_PATH`, env `MCP_DIR` overrides) and their tools are mounted into the agent via `create_mcp_tools()` (`tool_name_prefix=True`, so names are `<server>_<tool>`; best-effort, `MCP_LOAD_TIMEOUT` default 20s, failures skip silently). Nothing reads `~/.claude.json` / `claude_desktop_config.json`. Enabled + verified servers: `web` (`uvx mcp-server-fetch` → `web_fetch`) and `ddg` (`uvx duckduckgo-mcp-server` → `ddg_search`/`ddg_fetch_content`/`ddg_expand_link`); both return real results from a domestic network. `uvx`-based entries must set `UV_DEFAULT_INDEX` (TUNA mirror) in their `env`, otherwise uv can hang resolving deps — `env` is merged on top of the default environment, so `PATH` is preserved. Windows gotcha: `subprocess` won't resolve `.cmd`, so any `npx`-based server must use `command: "npx.cmd"`. Verify a server before adding it (`mcp/README.md` documents a stdio probe approach). Skill **triggering is driven by the SKILL.md frontmatter `description`** — the model only sees `name` + `description` + path (progressive disclosure) and then `read_file`s the body via `limit=1000`, so any "use when the user asks X" wording must live in `description`, not the body. Built-in: `skills/osint-recon/` (OSINT collection workflow, fires on 搜集/搜索/查找/调查/情报-style requests). `tests/test_skill_set.py::test_all_project_skills_are_spec_compliant` guards the spec (frontmatter `name` must equal the folder name, `description` required).
+- **`write_file` shadowing**: the project's `write_file(filename, content)` (in `agent_set/tools/files.py`) shadows deepagents' built-in `write_file` (the project tool wins the name dedup). Both now anchor relative paths to the repo root, so project tools and built-in file tools agree. Verify with `create_agent().nodes["tools"].bound.tools_by_name`.
+- **MCP tools are async-only**: `StructuredTool.invoke` raises `NotImplementedError` for them; only `ainvoke` works (the agent's `astream_events` path does this). Use `asyncio.run(tool.ainvoke({...}))` when testing.
 
 ---
 
@@ -236,6 +256,7 @@ def get_or_create_session(thread_id: str | None) -> dict:
 ### Dev Server Notes (see `web/web_server.py`)
 
 - **Graceful shutdown timeout**: `uvicorn.run(..., timeout_graceful_shutdown=5)` force-exits the worker after 5s even with open SSE connections. Without it, `reload=True` hot-reload hangs forever at "Waiting for connections to close" because the browser's SSE streams (`/api/rss/stream`, `/api/alerts/stream`) keep the old worker alive — every request then times out and the page spins. Never remove this timeout.
+- **Ctrl+C must actually stop the server**: never launch it as `uv run python -m web.web_server` from the launcher scripts — on Windows the extra `uv` wrapper process can swallow `CTRL_C_EVENT`, so Ctrl+C appears to do nothing. The scripts invoke `.venv`'s Python directly (`start.bat` / `start.sh`) and set `RELOAD=0` by default, because uvicorn's reloader spawns a worker that can survive as an ORPHAN after the parent is interrupted: the port then points at an already-dead parent PID while the orphan (`--multiprocessing-fork`) keeps serving — which is the real mechanism behind "Ctrl+C does nothing". `stop.bat` / `stop.sh` are the fallback (kill port owner + kill anything running `web.web_server`, then verify the port is free).
 - **UTF-8 mode auto-restart**: on Windows, `__main__` re-execs itself with `-X utf8` when `sys.flags.utf8_mode` is off. Without it, deepagents' built-in `read_file` tool and `subprocess` output decoding fail with `UnicodeDecodeError` (GBK vs UTF-8), breaking the agent loop.
 ### Canvas / GraphRAG Board Integration Notes (see `web/intelligence/graph_board.py`, `web/api/canvas_api.py`, `agent_set/tools/graphrag.py`, `static/canvas.js`, `static/canvas.css`)
 
@@ -255,6 +276,11 @@ def get_or_create_session(thread_id: str | None) -> dict:
 - **Tool robustness**: `run_powershell` catches `TimeoutExpired`/`OSError` and returns `[Error]` strings instead of raising (deepagents runs with `handle_tool_errors=False`, so raised tool errors abort the whole loop). `read_text_file` auto-detects encoding (utf-8 → gbk → gb18030 → latin-1) when the requested encoding fails.
 - **TODO archive**: on completion, `todo.md` is renamed to `todo_archive.md` (via `archive_todo`) instead of being deleted, preserving the task record.
 - **JS pitfall**: `pendingQueue` in `chat.js` must be `$pendingQueue` (the DOM cache from `dom.js`); a bare `pendingQueue` throws `ReferenceError` in the `finally` block after an interrupt.
+- **Loop guard + heartbeat**: `stream_chat_response` is a thin heartbeat wrapper (producer task + `asyncio.wait_for` queue read) around `_stream_chat_impl`; it emits `": keep-alive\n\n"` every `SSE_HEARTBEAT_INTERVAL` (default 15s) so long tool calls don't drop the SSE connection. The auto-iteration loop (1) skips task analysis entirely when the agent produced no text, (2) tracks `seen_actions` and stops with `reason="no_progress"` when the same `next_action` repeats or the response is unchanged (previously it burned all `max_auto_iterations` re-running an identical instruction), and (3) reports the real `iterations` count + `stop_reason` in `loop_end`/`done` metadata and in the history metadata. Do NOT rewrite the loop as `while iteration < max: ... else:` — with the text guard the `else` would fire when the loop is skipped for an empty response and wrongly report `max_iterations`.
+- **`message_history` bound**: always write via `ChatHandler._set_history` (never assign `message_history[thread_id]` directly); it evicts the oldest thread when `MAX_HISTORY_THREADS` (200) is exceeded. `task_cache` mutations are guarded by `_cache_lock`.
+- **Agent-driven TODO (skip the analyzer LLM call)**: tools `read_todo`/`update_todo` (`agent_set/tools/todo.py`) let the agent read and mark the session's task list. `_stream_agent_events` records each turn's tool names in `result["tools_called"]`; when `update_todo` (`TODO_TOOL_NAME`) was used, the loop calls `_check_todo_locally()` (pure file read) instead of the `check_task_completed` LLM round-trip. If the agent does not call the tool, the previous analyzer path still runs — so this is a safe, additive optimization, not a replacement. `prompt/AGENTS.md` documents the read-then-update workflow for the model.
+- **Tool failure surfacing**: project tools return `[Error] ...` strings instead of raising, so `chat_handler.chat_stream` inspects `on_tool_end` output and emits `status="✗ 失败: ..."`; it also handles `on_tool_error`. The frontend renders `✗` statuses at `error` level.
+- **astream_events stays on v2**: langgraph 1.x's `version="v3"` is experimental (Beta), returns an awaitable whose events use a `{method, params, seq, type}` envelope (not `{event, name, data}`), and would require rewriting all event handling. Do not switch without a full rewrite.
 ---
 ## Notes
 

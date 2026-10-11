@@ -99,7 +99,11 @@ function renderMessage(role, content, metadata = null) {
     if (metadata.iterations) {
       const iterDiv = document.createElement('span');
       iterDiv.className = 'msg-iterations';
-      iterDiv.textContent = `${metadata.iterations.length} iterations`;
+      // 兼容两种形式：旧数据为迭代记录数组，新数据为次数数字
+      const count = Array.isArray(metadata.iterations)
+        ? metadata.iterations.length
+        : metadata.iterations;
+      iterDiv.textContent = `${count} iterations`;
       metaDiv.appendChild(iterDiv);
     }
 

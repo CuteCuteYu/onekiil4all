@@ -8,6 +8,7 @@ Meta API - 技能与工具路由
 
 from fastapi import APIRouter
 
+from agent_set.mcp_set import MCP_CONFIG_PATH, list_mcp_servers
 from agent_set.skill_set import load_skill
 from agent_set.tools import tools
 
@@ -50,7 +51,7 @@ async def api_list_skills():
     """
     列出可用的技能列表
 
-    复用 skill_set.load_skill() 读取 ~/.claude/skills 目录
+    复用 skill_set.load_skill() 读取项目内技能目录（默认 skills/，不读 ~/.claude/skills）
 
     返回:
         技能列表，每个技能包含id和description
@@ -80,4 +81,21 @@ async def api_list_tools():
             {"name": tool.name, "description": tool.description.strip()}
             for tool in tools
         ]
+    }
+
+
+@router.get("/api/mcp")
+async def api_list_mcp():
+    """
+    列出项目内 MCP 服务器配置
+
+    仅解析项目内 mcp/mcp.json（不读 Claude Code/Desktop 的全局配置），
+    返回配置摘要，不建立连接。
+
+    返回:
+        包含 config_path 与 servers 列表
+    """
+    return {
+        "config_path": str(MCP_CONFIG_PATH),
+        "servers": list_mcp_servers(),
     }

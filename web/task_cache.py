@@ -7,6 +7,7 @@ Task Cache - 任务状态缓存模块
 """
 
 import logging
+import threading
 import time
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 _task_cache: dict[str, tuple[float, tuple[bool, str]]] = {}
 # 缓存超时时间（秒）
 _CACHE_TIMEOUT = 30
+# 缓存读写锁（任务分析可能在工作线程中并发调用）
+_cache_lock = threading.Lock()
 
 
 def get_cached(cache_key: str) -> tuple[bool, str] | None:
@@ -27,22 +30,24 @@ def get_cached(cache_key: str) -> tuple[bool, str] | None:
     返回:
         缓存结果 (是否完成, 下一步指令)，未命中或过期返回 None
     """
-    cached = _task_cache.get(cache_key)
-    if cached and time.time() - cached[0] < _CACHE_TIMEOUT:
-        logger.debug("使用缓存结果")
-        return cached[1]
+    with _cache_lock:
+        cached = _task_cache.get(cache_key)
+        if cached and time.time() - cached[0] < _CACHE_TIMEOUT:
+            logger.debug("使用缓存结果")
+            return cached[1]
     return None
 
 
 def set_cached(cache_key: str, result: tuple[bool, str]):
     """写入缓存并清理过期条目"""
-    _task_cache[cache_key] = (time.time(), result)
-    clean_old_cache(time.time())
+    with _cache_lock:
+        _task_cache[cache_key] = (time.time(), result)
+        _clean_old_cache(time.time())
 
 
-def clean_old_cache(current_time: float):
+def _clean_old_cache(current_time: float):
     """
-    清理过期缓存
+    清理过期缓存（调用方需持有 _cache_lock）
 
     定期清理超过超时时间的缓存条目
 

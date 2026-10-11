@@ -55,6 +55,9 @@ class ChatHandler:
     并调用Agent处理用户请求
     """
 
+    # 内存缓存的线程历史上限，超出后淘汰最旧线程，避免内存无限增长
+    MAX_HISTORY_THREADS = 200
+
     def __init__(self):
         """初始化聊天处理器"""
         self.thread_id = None  # 当前对话线程ID
@@ -84,6 +87,22 @@ class ChatHandler:
         self.thread_id = str(uuid.uuid4())
         if old_thread_id is not None:
             self.message_history.pop(old_thread_id, None)
+
+    def _set_history(self, thread_id: str, messages: list[Any]):
+        """
+        写入线程历史缓存，并淘汰最旧的线程以限制内存占用
+
+        参数:
+            thread_id: 线程ID
+            messages: 该线程的完整消息列表
+        """
+        self.message_history[thread_id] = messages
+        while len(self.message_history) > self.MAX_HISTORY_THREADS:
+            oldest = next(iter(self.message_history))
+            if oldest == thread_id:
+                # 不淘汰当前正在使用的线程，避免自伤
+                break
+            del self.message_history[oldest]
 
     def _load_history(self, thread_id: str) -> list[Any]:
         """
@@ -146,7 +165,7 @@ class ChatHandler:
         )
 
         # 更新消息历史
-        self.message_history[thread_id] = list(result["messages"])
+        self._set_history(thread_id, list(result["messages"]))
 
         details = self._extract_details(result["messages"])
 
@@ -169,7 +188,7 @@ class ChatHandler:
 
         # 如果线程没有历史记录，从持久化历史(JSONL)加载，保证多轮对话上下文
         if thread_id not in self.message_history or not self.message_history[thread_id]:
-            self.message_history[thread_id] = self._load_history(thread_id)
+            self._set_history(thread_id, self._load_history(thread_id))
 
         messages = self.message_history[thread_id].copy()
         messages.append({"role": "user", "content": content})
@@ -177,6 +196,9 @@ class ChatHandler:
 
         yield {"type": "segment_start"}
 
+        # 固定使用 v2 事件协议：langgraph 1.x 的 v3 协议仍为实验性（Beta），
+        # 且事件结构是 {method,params,seq,type} 信封、需先 await 再迭代，
+        # 与现有 on_chat_model_stream / on_tool_* 处理逻辑完全不兼容，暂不切换。
         async for event in agent.astream_events(
             {"messages": messages}, config=config, version="v2"
         ):
@@ -196,10 +218,27 @@ class ChatHandler:
                 }
 
             elif event_type == "on_tool_end":
+                # 项目工具约定用 "[Error]" 前缀返回失败而非抛异常，
+                # 这里识别出来，避免失败的工具也显示“✓ 完成”
+                output = event.get("data", {}).get("output")
+                text = content_to_text(getattr(output, "content", output)).strip()
+                name = event.get("name", "unknown")
+                if text.startswith("[Error]"):
+                    yield {
+                        "type": "tool_call",
+                        "name": name,
+                        "status": f"✗ 失败: {text[7:].strip()[:100]}",
+                    }
+                else:
+                    yield {"type": "tool_call", "name": name, "status": "✓ 完成"}
+
+            elif event_type == "on_tool_error":
+                error = event.get("data", {}).get("error")
+                message = str(error)[:120] if error else "未知错误"
                 yield {
                     "type": "tool_call",
                     "name": event.get("name", "unknown"),
-                    "status": "✓ 完成",
+                    "status": f"✗ 失败: {message}",
                 }
 
         # 流结束后从检查点恢复完整消息列表
@@ -211,7 +250,7 @@ class ChatHandler:
             logger.warning("获取Agent最终状态失败", exc_info=True)
 
         if result_messages:
-            self.message_history[thread_id] = result_messages
+            self._set_history(thread_id, result_messages)
 
         details = self._extract_details(result_messages)
         response = self._final_response(result_messages) if result_messages else ""

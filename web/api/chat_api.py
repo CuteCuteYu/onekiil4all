@@ -9,11 +9,13 @@ Chat API - 聊天路由
 
 import asyncio
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from agent_set.tools.todo import TODO_TOOL_NAME
 from web.chat_handler import chat_handler
 from web.chat_history_store import append_message
 from web.conversation import create_todo_for_request, get_todo_manager, new_chat
@@ -27,6 +29,9 @@ router = APIRouter()
 
 # chat_handler 是全局单例，串行化处理避免并发请求互相串会话
 _chat_lock = asyncio.Lock()
+
+# SSE 心跳间隔（秒）：长时间工具执行期间定期发送注释帧，避免连接被判空闲而断开
+HEARTBEAT_INTERVAL = float(os.environ.get("SSE_HEARTBEAT_INTERVAL", "15"))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -59,8 +64,13 @@ async def _stream_agent_events(content: str, result: dict):
 
     参数:
         content: 传给Agent的用户输入
-        result: 输出容器，最终写入 "response" 与 "details"
+        result: 输出容器，最终写入 "response"、"details" 与
+                本轮实际调用的工具名集合 "tools_called"
     """
+    # 记录本轮实际调用的工具，供外层循环判断 Agent 是否自行更新了任务清单
+    called: set[str] = set()
+    result["tools_called"] = called
+
     async for event in chat_handler.chat_stream(content):
         event_type = event["type"]
         if event_type == "segment_start":
@@ -68,6 +78,7 @@ async def _stream_agent_events(content: str, result: dict):
         elif event_type == "token":
             yield sse_format({"type": "response", "content": event["content"]})
         elif event_type == "tool_call":
+            called.add(event["name"])
             yield sse_format(
                 {
                     "type": "tool_call",
@@ -83,11 +94,30 @@ async def _stream_agent_events(content: str, result: dict):
         yield sse_format({"type": "response_final", "content": result["response"]})
 
 
+def _check_todo_locally() -> tuple[bool, str]:
+    """
+    直接读取本地任务清单判定完成度
+
+    Agent 已通过 update_todo 工具维护清单时使用，省去一次模型分析调用。
+
+    返回:
+        tuple: (是否全部完成, 下一步指令)
+    """
+    tasks, _ = get_todo_manager().read_todo()
+    if not tasks:
+        return True, ""
+    pending = [t.get("description", "") for t in tasks if not t.get("completed")]
+    if not pending:
+        return True, ""
+    return False, f"继续执行: {pending[0]}"
+
+
 async def stream_chat_response(message: str, thread_id: str | None):
     """
-    流式推送聊天响应（真流式：token 级增量）
+    流式推送聊天响应（真流式：token 级增量 + 心跳保活）
 
-    使用Server-Sent Events (SSE) 协议将处理过程实时推送给前端
+    在底层事件流之上叠加周期性心跳帧（SSE 注释），
+    避免长时间工具调用期间连接被浏览器/代理判定为空闲而断开。
 
     参数:
         message: 用户发送的消息
@@ -95,6 +125,47 @@ async def stream_chat_response(message: str, thread_id: str | None):
 
     生成:
         SSE格式的数据字符串，包含各种事件类型
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def _produce():
+        # 生产者独立消费底层流，消费者用超时读队列以便插入心跳
+        try:
+            async for frame in _stream_chat_impl(message, thread_id):
+                await queue.put(frame)
+        except BaseException as exc:  # noqa: BLE001 - 含 CancelledError，需原样透传
+            await queue.put(exc)
+        finally:
+            await queue.put(None)
+
+    task = asyncio.create_task(_produce())
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_INTERVAL)
+            except TimeoutError:
+                yield ": keep-alive\n\n"
+                continue
+            if item is None:
+                break
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+    finally:
+        if not task.done():
+            task.cancel()
+
+
+async def _stream_chat_impl(message: str, thread_id: str | None):
+    """
+    聊天流式处理的实现主体（由 stream_chat_response 包装并叠加心跳）
+
+    参数:
+        message: 用户发送的消息
+        thread_id: 可选的线程ID
+
+    生成:
+        SSE格式的数据字符串
     """
     async with _chat_lock:
         # 提前定义，供 except/finally 中断处理使用
@@ -164,18 +235,24 @@ async def stream_chat_response(message: str, thread_id: str | None):
             iteration = 0
             current_last_action = last_action
             # 停止原因: completed(任务完成) / max_iterations(达上限) /
-            # no_next_action(无下一步) / no_todo(无任务清单)
+            # no_next_action(无下一步) / no_progress(无进展) / error
             loop_end_reason = "completed"
+            # 已下发过的"下一步指令"，用于识别重复指令导致的空转
+            seen_actions: set[str] = set()
 
-            # 循环检查直到达到最大迭代次数
-            while iteration < session["max_auto_iterations"]:
+            # 循环检查直到达到最大迭代次数（无内容产出时直接跳过任务分析）
+            while response.strip() and iteration < session["max_auto_iterations"]:
                 # 发送检查状态
                 yield sse_format({"type": "status", "message": "检查任务完成状态..."})
 
-                # 调用AI检查任务是否完成
-                completed, next_action = await asyncio.to_thread(
-                    check_task_completed, response, message, current_last_action
-                )
+                # Agent 本轮若已自行更新任务清单，直接本地判定完成度与下一步，
+                # 省去一次模型分析调用；否则回退到原有的模型分析
+                if TODO_TOOL_NAME in stream_result.get("tools_called", set()):
+                    completed, next_action = _check_todo_locally()
+                else:
+                    completed, next_action = await asyncio.to_thread(
+                        check_task_completed, response, message, current_last_action
+                    )
 
                 # 如果任务已完成
                 if completed:
@@ -190,6 +267,13 @@ async def stream_chat_response(message: str, thread_id: str | None):
                     loop_end_reason = "no_next_action"
                     break
 
+                # 同一指令重复下发说明任务未实际推进，提前终止避免空转
+                if next_action in seen_actions:
+                    logger.info("检测到重复指令，提前结束循环: %s", next_action[:80])
+                    loop_end_reason = "no_progress"
+                    break
+                seen_actions.add(next_action)
+
                 yield sse_format(
                     {
                         "type": "status",
@@ -199,14 +283,25 @@ async def stream_chat_response(message: str, thread_id: str | None):
                 yield sse_format({"type": "auto_continue", "content": next_action})
 
                 # 继续流式执行
+                prev_response = response
                 async for sse_frame in _stream_agent_events(next_action, stream_result):
                     yield sse_frame
                 response = stream_result.get("response", response)
 
+                # 回复没有实质变化也视为无进展，避免继续空耗剩余迭代
+                if not response.strip() or response == prev_response:
+                    loop_end_reason = "no_progress"
+                    break
+
                 current_last_action = next_action
                 iteration += 1
-            else:
-                # while 正常结束(未 break)说明达到最大迭代次数
+
+            # 未发生任何 break 且已达迭代上限 → 判定为达到最大迭代次数
+            # （无内容产出跳过循环时 iteration 仍为 0，保持 completed）
+            if (
+                loop_end_reason == "completed"
+                and iteration >= session["max_auto_iterations"]
+            ):
                 loop_end_reason = "max_iterations"
 
             # 发送 loop 结束事件，前端可据此展示停止原因
@@ -223,11 +318,24 @@ async def stream_chat_response(message: str, thread_id: str | None):
             if todo_mgr.exists() and todo_mgr.archive_todo():
                 yield sse_format({"type": "todo_deleted"})
 
-            # 保存助手回复到历史记录
-            append_message(tid, "assistant", response, {"iterations": []})
+            # 保存助手回复到历史记录（记录真实迭代次数与停止原因）
+            append_message(
+                tid,
+                "assistant",
+                response,
+                {"iterations": iteration, "stop_reason": loop_end_reason},
+            )
 
-            # 发送完成信号
-            yield sse_format({"type": "done"})
+            # 发送完成信号（附带元数据，前端可据此展示）
+            yield sse_format(
+                {
+                    "type": "done",
+                    "metadata": {
+                        "iterations": iteration,
+                        "stop_reason": loop_end_reason,
+                    },
+                }
+            )
 
         except asyncio.CancelledError:
             # 客户端断开/用户点击 STOP 中断：保存已生成的部分回复，
@@ -247,12 +355,23 @@ async def stream_chat_response(message: str, thread_id: str | None):
             logger.exception("聊天处理异常")
             error_msg = str(e)
             # 根据错误类型转换错误信息为中文提示
-            if "429" in error_msg or "rate limit" in error_msg.lower():
+            if (
+                "401" in error_msg
+                or "authentication" in error_msg.lower()
+                or "api key" in error_msg.lower()
+            ):
+                error_msg = (
+                    "模型认证失败 (401)：请确认启动服务时使用的是有效的 "
+                    "ANTHROPIC_AUTH_TOKEN（不要用占位符），详见 README「常见问题」"
+                )
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
                 error_msg = "API 限流，请稍后再试 (模型当前负载过高)"
             elif "timeout" in error_msg.lower():
                 error_msg = "请求超时，请重试"
             elif "connection" in error_msg.lower():
                 error_msg = "网络连接错误"
+            elif "recursion" in error_msg.lower():
+                error_msg = "任务步骤过多已中止（达到递归/迭代上限）"
 
             # 发送错误事件
             yield sse_format({"type": "error", "message": error_msg})

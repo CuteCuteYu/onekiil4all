@@ -3,21 +3,33 @@
 Skill Set - 技能集模块
 ========================================
 功能: 加载和管理AI Agent的技能
-从~/.claude/skills目录读取技能定义文件
+从项目内 skills/ 目录读取技能定义文件
+（默认不读取 Claude Code 的 ~/.claude/skills，可用 SKILLS_DIR 覆盖）
  作者: CuteCuteYu
 """
 
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # 导入标准库
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 
+import os
 from pathlib import Path
 
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # 导入DeepAgents工具函数
-# ═══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 from deepagents.backends.utils import create_file_data
 from langgraph.store.memory import InMemoryStore
+
+# ══════════════════════════════════════════════════════════════
+# 技能目录配置（项目内，独立于任何外部工具的全局目录）
+# ══════════════════════════════════════════════════════════════
+
+# 项目根目录（agent_set/ 的上一级）
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# 技能目录：默认使用项目内的 skills/，可用环境变量 SKILLS_DIR 覆盖
+SKILLS_DIR = Path(os.environ.get("SKILLS_DIR") or (_PROJECT_ROOT / "skills"))
 
 # ═══════════════════════════════════════════════════════════════
 # 技能加载函数
@@ -28,19 +40,15 @@ def load_skill() -> dict:
     """
     加载所有可用技能
 
-    从~/.claude/skills目录读取每个技能的SKILL.md文件，
-    同时收集技能目录下的辅助文件（references/、scripts/ 等），
-    供 Agent 在需要时读取完整技能上下文。
+    从项目内技能目录（SKILLS_DIR，默认 skills/）读取每个技能的 SKILL.md 文件。
 
     返回:
         技能字典，键为技能名称，值为技能内容文本
     """
-    # 技能目录路径
-    skills_dir = Path.home() / ".claude" / "skills"
     skills_dict = {}
 
     # 遍历技能目录
-    for folder in skills_dir.iterdir() if skills_dir.exists() else []:
+    for folder in SKILLS_DIR.iterdir() if SKILLS_DIR.exists() else []:
         if folder.is_dir():
             skill_md = folder / "SKILL.md"
             if skill_md.exists():
@@ -56,13 +64,14 @@ def load_skill_files() -> dict[str, dict[str, str]]:
     """
     加载所有技能及其辅助文件
 
+    从项目内技能目录（SKILLS_DIR，默认 skills/）读取。
+
     返回:
         {技能名: {相对路径: 文件内容}}，包含 SKILL.md 和 references/ 等辅助文件
     """
-    skills_dir = Path.home() / ".claude" / "skills"
     result: dict[str, dict[str, str]] = {}
 
-    for folder in skills_dir.iterdir() if skills_dir.exists() else []:
+    for folder in SKILLS_DIR.iterdir() if SKILLS_DIR.exists() else []:
         if not folder.is_dir():
             continue
         files: dict[str, str] = {}
@@ -87,6 +96,10 @@ def load_skill_files() -> dict[str, dict[str, str]]:
 # ═══════════════════════════════════════════════════════════════
 # 技能存储创建函数
 # ═══════════════════════════════════════════════════════════════
+
+# 说明：Agent 现在使用 FilesystemBackend 从真实磁盘直接读取 skills/
+# （见 agent_set/agent_set.py），因此 create_skill_store() 不再是必需路径，
+# 仅保留给「把技能预置进 StoreBackend / StateBackend」这类用法。
 
 
 def create_skill_store():
