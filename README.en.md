@@ -2,6 +2,8 @@
 
 AI Intelligence Assistant for Social-Engineering Defense - Built with LangChain + Anthropic-compatible models
 
+> Language: English ｜ [中文](README.md)
+
 ## Project Overview
 
 上古必斩必杀 is an AI intelligence-analysis assistant focused on **social-engineering (SE) defense**, built around the loop of "recognize scripts → analyze psychology → sediment intelligence":
@@ -16,6 +18,10 @@ AI Intelligence Assistant for Social-Engineering Defense - Built with LangChain 
 - **Tool Calling**: Support for multiple tools (file operations, command execution, graph query & write, etc.)
 
 > **Red lines**: analysis only, never generation — refuses to write/optimize any manipulation scripts, no psychological profiles of real individuals, group-level assessment only.
+
+## UI Preview
+
+![Main interface](assets/images/1.主界面展示.png)
 
 ## Tech Stack
 
@@ -158,6 +164,8 @@ Before entering the agent loop, the page requires the user to pick a **workspace
 
 ### 5. Keyword Monitoring & Alerts
 
+![Keyword alert feature](assets/images/2.告警功能展示.png)
+
 - **Add Monitoring**: Enter keywords in ALERTS tab to add monitoring
 - **Auto-detection**: Background task checks trending data every 30 seconds (data cached for 30s), alerts immediately on match
 - **Real-time Push**: SSE pushes new alerts to frontend instantly (single-layer event forwarding, fields directly readable)
@@ -172,6 +180,8 @@ Before entering the agent loop, the page requires the user to pick a **workspace
 
 ### 6. Keyword Association Analysis
 
+![Keyword association feature](assets/images/3.关键词联想功能展示.png)
+
 - **Association Search**: Enter any keyword (Chinese or English) in LINKS tab
 - **Web Search + AI Summary**: fetches related web page titles via search engines (DuckDuckGo / Bing), then the project AI model summarizes 5-12 highly relevant keywords (brands/products/entities, mixed Chinese/English)
 - **Two-level Smart Fallback**:
@@ -184,12 +194,16 @@ Before entering the agent loop, the page requires the user to pick a **workspace
 
 ### 7. RSS Subscription
 
+![RSS subscription feature](assets/images/4.rss订阅功能展示.png)
+
 - **Add Subscription**: Enter RSS/Atom URL in RSS tab to add
 - **Format Support**: supports RSS 2.0, RSS 1.0 (RDF/XML) and Atom XML formats
 - **Instant Display**: articles are fetched and shown immediately after adding a source, no manual refresh needed (background task still updates periodically)
 - **Duplicate Detection**: Same URL (case-insensitive) cannot be added, shows "URL already exists"
 
 ### 8. Message Psychology Profiling (PROFILE / Social-Engineering Defense Analysis)
+
+![Psychology profiling feature](assets/images/5.心理画像分析功能展示.png)
 
 In the **PROFILE** tab of the INTELLIGENCE panel, paste a suspicious message sample (chat log / SMS / email / customer-service conversation) to generate a **defense-only** psychology profiling report:
 
@@ -199,9 +213,13 @@ In the **PROFILE** tab of the INTELLIGENCE panel, paste a suspicious message sam
 - **Sediment to CANVAS**: after the report, one click writes the fraud pattern / levers / stages / persona into the intelligence board (with user consent, via `graph_add_node` / `graph_add_edge`, FraudPattern as the hub with USES/STAGE/PERSONA relations)
 - **Visible failures**: model-call failures now show an explicit error in the panel instead of an empty success card (the chat area shows the red error too)
 
+![Sediment-to-graph button](assets/images/7.沉淀到图谱按钮展示.png)
+
 ### 10. Intelligence Board (CANVAS / GraphRAG)
 
 Integrated from GraphRAG Viz, available in the **CANVAS** tab of the INTELLIGENCE panel:
+
+![Canvas board UI](assets/images/6.canvas功能界面展示.png)
 
 - **Multi-board management**: each board is a standalone JSON file (`data/graphs/*.json`); create / switch / rename / delete
 - **Graph visualization**: Cytoscape force-directed layout, drag/zoom/pan/fit
@@ -211,6 +229,10 @@ Integrated from GraphRAG Viz, available in the **CANVAS** tab of the INTELLIGENC
 - **GraphRAG retrieval**: generate 1~2 hop semantic triplets Prompt Context and export standard GraphRAG index (MS GraphRAG / LlamaIndex compatible)
 - **Saved-state check**: chat header shows `● GRAPH RAG · board` (saved/connected) or `○ not saved`; board toolbar shows saved/unsaved badge
 - **Agent auto-connect**: once the board is **saved**, the Agent can use `graphrag_status` / `graphrag_query` to answer questions about board entities; `graph_add_node` / `graph_add_edge` work whenever a board is open (batch sedimentation: writes flip the board to unsaved, which is expected — save once at the end)
+
+Result of sedimenting a psychology profile into the graph:
+
+![Sediment-to-graph result](assets/images/8.沉淀到图谱效果展示.png)
 
 ### 9. Frontend Features
 
