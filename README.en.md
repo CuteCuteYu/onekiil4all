@@ -1,15 +1,21 @@
 # 上古必斩必杀
 
-AI Intelligent Assistant - Built with LangChain + Anthropic-compatible models
+AI Intelligence Assistant for Social-Engineering Defense - Built with LangChain + Anthropic-compatible models
 
 ## Project Overview
 
-上古必斩必杀 is a powerful AI assistant that supports:
+上古必斩必杀 is an AI intelligence-analysis assistant focused on **social-engineering (SE) defense**, built around the loop of "recognize scripts → analyze psychology → sediment intelligence":
 
-- **Smart Conversation**: Anthropic-protocol-compatible LLMs (Claude / GLM, etc.)
+- **Message Psychology Profiling**: paste a suspicious message sample (chat / SMS / email / customer-service conversation) to generate a seven-section defense report (script-stage determination / psychological-lever hits / impersonated persona / sentence-by-sentence breakdown / group susceptibility)
+- **OSINT Intelligence Gathering**: built-in recon skill (`skills/osint-recon/`), multi-platform public-information search and association analysis
+- **Intelligence Board**: local knowledge-graph visualization + GraphRAG data preparation (multi-board management, 14 entity types incl. FraudPattern / PsychLever / ScriptStage / Persona, one-click index export)
+- **GraphRAG Conversation**: once a board is saved, the Agent auto-connects graph-retrieval tools to answer questions about board entities
+- **Intelligence Monitoring**: multi-platform hot-search aggregation, keyword alerts and RSS subscriptions to track emerging scam trends
+- **Smart Conversation**: Anthropic-protocol-compatible LLMs (Claude / GLM, etc.) with auto-iterating task execution
 - **Task Management**: Auto-generate and manage TODO lists
-- **Tool Calling**: Support for multiple tools (file operations, command execution, etc.)
-- **Web Interface**: Modern responsive frontend
+- **Tool Calling**: Support for multiple tools (file operations, command execution, graph query & write, etc.)
+
+> **Red lines**: analysis only, never generation — refuses to write/optimize any manipulation scripts, no psychological profiles of real individuals, group-level assessment only.
 
 ## Tech Stack
 
