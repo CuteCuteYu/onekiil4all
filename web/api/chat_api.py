@@ -16,7 +16,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agent_set.tools.todo import TODO_TOOL_NAME
-from web.chat_handler import chat_handler
+from agent_set.workspace import is_ready as workspace_is_ready
+from web.chat_handler import WORKSPACE_NOT_READY, chat_handler
 from web.chat_history_store import append_message
 from web.conversation import create_todo_for_request, get_todo_manager, new_chat
 from web.sessions import get_or_create_session
@@ -392,6 +393,8 @@ async def api_chat(req: ChatRequest):
     """
     聊天接口 - 发送消息并获取AI回复（流式响应）
 
+    未选择工作区时返回 409，前端应引导用户先选择工作区文件夹
+
     参数:
         req: ChatRequest对象，包含message和可选的thread_id
 
@@ -401,6 +404,10 @@ async def api_chat(req: ChatRequest):
     # 验证消息不为空
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
+
+    # Agent loop 初始化门槛：未选工作区直接拒绝，不进入 Agent
+    if not workspace_is_ready():
+        raise HTTPException(status_code=409, detail=WORKSPACE_NOT_READY)
 
     # 返回流式响应
     return StreamingResponse(

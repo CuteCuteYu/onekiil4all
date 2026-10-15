@@ -27,6 +27,25 @@
   <link rel="stylesheet" href="/static/canvas.css?v=1">
 </head>
 <body>
+  <!-- 工作区选择遮罩：初始化时用户必须先选择一个文件夹作为工作区 -->
+  <div class="workspace-overlay" id="workspace-overlay" hidden>
+    <div class="workspace-dialog">
+      <div class="workspace-title">选择工作区</div>
+      <div class="workspace-desc">
+        Agent 的所有产物（生成的文件、报告等）默认保存在工作区文件夹中。<br>
+        请输入或粘贴一个文件夹的绝对路径：
+      </div>
+      <div class="workspace-input-row">
+        <input type="text" id="workspace-input" class="workspace-input"
+               placeholder="D:\workspace\my-projects" spellcheck="false" autocomplete="off">
+        <button id="workspace-browse" class="workspace-browse-btn" type="button" title="浏览文件夹">BROWSE</button>
+      </div>
+      <div class="workspace-error" id="workspace-error" hidden></div>
+      <button id="workspace-confirm" class="workspace-confirm-btn" type="button">进入工作区</button>
+      <div class="workspace-hint">路径需为本机已存在的文件夹，选择后可随时在页头切换</div>
+    </div>
+  </div>
+
   <!-- 主应用容器，使用CSS Grid布局 -->
   <div id="app">
     <!-- 左侧边栏：包含历史记录、待办事项和技能/工具面板 -->
@@ -99,6 +118,8 @@
         <div class="header-right">
           <!-- GraphRAG 画板接入状态徽章（画板已保存时显示已接入） -->
           <span class="graphrag-badge" id="graphrag-badge" hidden></span>
+          <!-- 当前工作区徽章（点击重新选择工作区） -->
+          <button class="workspace-badge" id="workspace-badge" hidden title="点击切换工作区"></button>
           <!-- 当前对话线程ID徽章 -->
           <span class="thread-badge" id="thread-badge"></span>
           <!-- 新建对话按钮 -->
@@ -455,6 +476,7 @@
   <script src="/static/intelligence/rss.js?v=3"></script>
   <script src="/static/intelligence/profile.js?v=2"></script>
   <script src="/static/canvas.js?v=1"></script>
+  <script src="/static/workspace.js?v=1"></script>
   <script src="/static/init.js?v=3"></script>
 </body>
 </html>

@@ -67,12 +67,13 @@ onekiil4all/
 │       ├── rss_manager.py    # RSS 订阅管理
 │       └── rss_parser.py     # RSS/Atom 公共解析
 ├── agent_set/                # Agent 组件
-│   ├── agent_set.py          # Agent 创建（FilesystemBackend + 技能/记忆/MCP 装配）
+│   ├── agent_set.py          # Agent 创建（CompositeBackend 工作区路由 + 技能/记忆/MCP 装配）
+│   ├── workspace.py          # 工作区状态管理（会话前必须先选择文件夹，持久化到 data/workspace.json）
 │   ├── mcp_set.py            # MCP 配置加载与工具挂载（读项目内 mcp/mcp.json）
 │   ├── tools/                # 工具集包（按职责拆分）
 │   │   ├── __init__.py       # 工具列表导出
 │   │   ├── shell.py          # PowerShell 命令执行
-│   │   ├── files.py          # 文件读写（相对路径锚定项目根）
+│   │   ├── files.py          # 文件读写（相对路径锚定当前工作区）
 │   │   ├── search.py         # 网络搜索与 RSS 获取
 │   │   ├── graphrag.py       # 画板状态检查 + GraphRAG 检索工具
 │   │   └── todo.py           # 任务清单读取/更新工具
@@ -250,7 +251,7 @@ onekiil4all/
 
 工具名带服务器前缀（`<server>_<tool>`）。可用 `GET /api/mcp` 查看配置，详见 `mcp/README.md`。
 
-**文件工具**：Agent 使用 `FilesystemBackend`（锚定项目根），因此内置的 `ls / read_file / write_file / edit_file / glob / grep / delete` 全部作用于**真实磁盘**，写入的文件可立即被读取/编辑/检索。
+**文件工具与工作区**：进入 Agent 会话前，页面会强制要求先选择一个**工作区文件夹**（`agent_set/workspace.py` 管理状态，持久化到 `data/workspace.json`，页头徽章可随时切换）。Agent 使用 `CompositeBackend`：默认后端锚定工作区，`/prompt/` 与 `/skills/` 前缀固定映射到项目内 `prompt/`、`skills/` 目录，因此内置的 `ls / read_file / write_file / edit_file / glob / grep / delete` 全部作用于**真实磁盘**，所有产物默认保存在工作区内，写入的文件可立即被读取/编辑/检索。未选择工作区时聊天接口返回 409 并重新弹出选择页。
 
 ## 快速开始
 

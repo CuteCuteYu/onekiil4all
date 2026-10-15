@@ -123,14 +123,15 @@ onekiil4all/
 │   ├── sse.py                # SSE formatting + per-connection broadcast
 │   ├── paths.py              # Project path constants (anchored to repo root)
 │   ├── api/                  # API routers (split by responsibility)
-│   │   ├── chat_api.py       # Chat SSE streaming
+│   │   ├── chat_api.py       # Chat SSE streaming (409 when no workspace)
 │   │   ├── session_api.py    # Sessions / TODO query
 │   │   ├── history_api.py    # Chat history CRUD
 │   │   ├── meta_api.py       # Skills/tools routes
 │   │   ├── intelligence_api.py # Trends / associations
 │   │   ├── alert_api.py      # Alert rules / history / SSE
 │   │   ├── rss_api.py        # RSS sources / articles / SSE
-│   │   └── canvas_api.py     # Boards / graph / types / GraphRAG routes
+│   │   ├── canvas_api.py     # Boards / graph / types / GraphRAG routes
+│   │   └── workspace_api.py  # Workspace pick / query / clear routes
 │   └── intelligence/         # Intelligence module
 │       ├── trends/           # Trending data package (split by responsibility)
 │       │   ├── __init__.py   # Entry (get_trends + cache)
@@ -145,10 +146,11 @@ onekiil4all/
 │       └── rss_parser.py     # Shared RSS/Atom parsing
 ├── agent_set/                # Agent components
 │   ├── agent_set.py          # Agent creation
+│   ├── workspace.py          # Workspace state (user-picked folder, persisted to data/workspace.json)
 │   ├── tools/                # Tool set package (split by responsibility)
 │   │   ├── __init__.py       # Tool list export
-│   │   ├── shell.py          # PowerShell command execution
-│   │   ├── files.py          # File read/write
+│   │   ├── shell.py          # PowerShell command execution (cwd=workspace)
+│   │   ├── files.py          # File read/write (anchored to workspace)
 │   │   ├── search.py         # Web search + RSS fetch
 │   │   ├── graphrag.py       # graphrag_status + graphrag_query tools
 │   │   └── todo.py           # read_todo + update_todo tools
@@ -166,6 +168,7 @@ onekiil4all/
 │   ├── chat.js              # Chat functionality
 │   ├── history.js           # History
 │   ├── todo.js              # Todo items
+│   ├── workspace.js         # Workspace picker overlay + header badge
 │   ├── skills.js            # Skills/tools
 │   ├── init.js              # Init and events
 │   ├── alert.html           # Alert detail page
@@ -194,8 +197,8 @@ onekiil4all/
 
 - **Environment Variables**: `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY` (required), `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL` - Model config read from ANTHROPIC_* env vars
 - **TODO Auto-Creation**: Messages >= 20 characters trigger automatic TODO generation
-- **Project-local skills, MCP & real-disk files**: the agent uses `FilesystemBackend(root_dir=<repo>, virtual_mode=True)`, so its built-in file tools (`ls/read_file/write_file/edit_file/delete/glob/grep`) operate on the **real disk**, with `/` mapped to the repo root (traversal `..`/`~` blocked). Skills are read from the repo's `skills/` (`skills=["/skills/"]`; `agent_set/skill_set.py` → `SKILLS_DIR = <repo>/skills`, env `SKILLS_DIR` overrides) and memory from `prompt/AGENTS.md` — both straight from disk, no store seeding. The old `~/.claude/skills` source and the `StoreBackend` are gone. MCP servers come from the repo's `mcp/mcp.json` (`agent_set/mcp_set.py` → `MCP_CONFIG_PATH`, env `MCP_DIR` overrides) and their tools are mounted into the agent via `create_mcp_tools()` (`tool_name_prefix=True`, so names are `<server>_<tool>`; best-effort, `MCP_LOAD_TIMEOUT` default 20s, failures skip silently). Nothing reads `~/.claude.json` / `claude_desktop_config.json`. Enabled + verified servers: `web` (`uvx mcp-server-fetch` → `web_fetch`) and `ddg` (`uvx duckduckgo-mcp-server` → `ddg_search`/`ddg_fetch_content`/`ddg_expand_link`); both return real results from a domestic network. `uvx`-based entries must set `UV_DEFAULT_INDEX` (TUNA mirror) in their `env`, otherwise uv can hang resolving deps — `env` is merged on top of the default environment, so `PATH` is preserved. Windows gotcha: `subprocess` won't resolve `.cmd`, so any `npx`-based server must use `command: "npx.cmd"`. Verify a server before adding it (`mcp/README.md` documents a stdio probe approach). Skill **triggering is driven by the SKILL.md frontmatter `description`** — the model only sees `name` + `description` + path (progressive disclosure) and then `read_file`s the body via `limit=1000`, so any "use when the user asks X" wording must live in `description`, not the body. Built-in: `skills/osint-recon/` (OSINT collection workflow, fires on 搜集/搜索/查找/调查/情报-style requests). `tests/test_skill_set.py::test_all_project_skills_are_spec_compliant` guards the spec (frontmatter `name` must equal the folder name, `description` required).
-- **`write_file` shadowing**: the project's `write_file(filename, content)` (in `agent_set/tools/files.py`) shadows deepagents' built-in `write_file` (the project tool wins the name dedup). Both now anchor relative paths to the repo root, so project tools and built-in file tools agree. Verify with `create_agent().nodes["tools"].bound.tools_by_name`.
+- **Project-local skills, MCP & workspace files**: the agent uses a `CompositeBackend` — the **default backend is anchored to the user-selected workspace folder** (`agent_set/workspace.py`, persisted to `data/workspace.json`, must be chosen before the agent loop starts; chat API returns 409 otherwise), while `/prompt/` and `/skills/` prefixes are fixed routes to the project's `prompt/` and `skills/` dirs. So the agent's built-in file tools (`ls/read_file/write_file/edit_file/delete/glob/grep`) operate on the **real disk inside the workspace** (`/` maps to the workspace root, traversal `..`/`~` blocked; `/prompt/AGENTS.md` still maps to `<repo>/prompt/AGENTS.md`). `run_powershell` executes with `cwd=<workspace>`. All artifacts default to the workspace. Skills are read from the repo's `skills/` (`skills=["/skills/"]`; `agent_set/skill_set.py` → `SKILLS_DIR = <repo>/skills`, env `SKILLS_DIR` overrides) and memory from `prompt/AGENTS.md` — both straight from disk, no store seeding. The old `~/.claude/skills` source and the `StoreBackend` are gone. MCP servers come from the repo's `mcp/mcp.json` (`agent_set/mcp_set.py` → `MCP_CONFIG_PATH`, env `MCP_DIR` overrides) and their tools are mounted into the agent via `create_mcp_tools()` (`tool_name_prefix=True`, so names are `<server>_<tool>`; best-effort, `MCP_LOAD_TIMEOUT` default 20s, failures skip silently). Nothing reads `~/.claude.json` / `claude_desktop_config.json`. Enabled + verified servers: `web` (`uvx mcp-server-fetch` → `web_fetch`) and `ddg` (`uvx duckduckgo-mcp-server` → `ddg_search`/`ddg_fetch_content`/`ddg_expand_link`); both return real results from a domestic network. `uvx`-based entries must set `UV_DEFAULT_INDEX` (TUNA mirror) in their `env`, otherwise uv can hang resolving deps — `env` is merged on top of the default environment, so `PATH` is preserved. Windows gotcha: `subprocess` won't resolve `.cmd`, so any `npx`-based server must use `command: "npx.cmd"`. Verify a server before adding it (`mcp/README.md` documents a stdio probe approach). Skill **triggering is driven by the SKILL.md frontmatter `description`** — the model only sees `name` + `description` + path (progressive disclosure) and then `read_file`s the body via `limit=1000`, so any "use when the user asks X" wording must live in `description`, not the body. Built-in: `skills/osint-recon/` (OSINT collection workflow, fires on 搜集/搜索/查找/调查/情报-style requests). `tests/test_skill_set.py::test_all_project_skills_are_spec_compliant` guards the spec (frontmatter `name` must equal the folder name, `description` required).
+- **`write_file` shadowing**: the project's `write_file(filename, content)` (in `agent_set/tools/files.py`) shadows deepagents' built-in `write_file` (the project tool wins the name dedup). Both anchor relative paths to the **current workspace** (`agent_set/workspace.py`), so project tools and built-in file tools agree. Verify with `create_agent().nodes["tools"].bound.tools_by_name`.
 - **MCP tools are async-only**: `StructuredTool.invoke` raises `NotImplementedError` for them; only `ainvoke` works (the agent's `astream_events` path does this). Use `asyncio.run(tool.ainvoke({...}))` when testing.
 
 ---

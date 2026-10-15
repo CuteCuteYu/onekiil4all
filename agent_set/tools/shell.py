@@ -10,11 +10,13 @@ import subprocess
 
 from langchain_core.tools import tool
 
+from agent_set import workspace
+
 
 @tool
 def run_powershell(command: str) -> str:
     """
-    在PowerShell中运行命令并返回输出结果
+    在当前工作区目录下运行PowerShell命令并返回输出结果
 
     参数:
         command: 要执行的PowerShell命令
@@ -23,6 +25,11 @@ def run_powershell(command: str) -> str:
         命令的标准输出内容。如果执行失败（返回码非0），
         则在输出末尾附加"[Error]"前缀的错误信息（stderr）
     """
+    # 相对路径命令统一在用户选择的工作区下执行
+    cwd = workspace.get_workspace()
+    if cwd is None:
+        return "[Error] 尚未选择工作区，请先在页面右上角选择工作区文件夹"
+
     try:
         result = subprocess.run(
             ["powershell", "-Command", command],
@@ -32,6 +39,7 @@ def run_powershell(command: str) -> str:
             errors="replace",  # PowerShell 输出可能是 GBK，容错解码避免崩溃
             timeout=60,
             check=False,
+            cwd=cwd,
         )
     except subprocess.TimeoutExpired:
         # 命令超时：返回错误信息而非抛出异常，避免中断 agent loop

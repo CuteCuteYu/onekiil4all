@@ -2187,3 +2187,131 @@ html, body {
 .graphrag-badge[hidden] {
   display: none;
 }
+
+/* ═══ 工作区选择（初始化门槛）═══ */
+
+.workspace-badge {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+  border: 1px solid var(--line-active);
+  background: transparent;
+  padding: 2px 6px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-family: inherit;
+}
+.workspace-badge:hover {
+  color: var(--fg);
+  border-color: var(--fg-dim);
+}
+.workspace-badge[hidden] {
+  display: none;
+}
+
+.workspace-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.workspace-overlay[hidden] {
+  display: none;
+}
+
+.workspace-dialog {
+  width: min(520px, calc(100vw - 48px));
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 32px;
+}
+
+.workspace-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 26px;
+  color: var(--fg);
+  margin-bottom: 12px;
+}
+
+.workspace-desc {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--fg-dim);
+  margin-bottom: 20px;
+}
+
+.workspace-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.workspace-input {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 9px 10px;
+  outline: none;
+}
+.workspace-input:focus {
+  border-color: var(--fg-dim);
+}
+
+.workspace-browse-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 0 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.workspace-browse-btn:hover {
+  color: var(--fg);
+  border-color: var(--fg-dim);
+}
+
+.workspace-error {
+  color: #e07a5f;
+  font-size: 11px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.workspace-error[hidden] {
+  display: none;
+}
+
+.workspace-confirm-btn {
+  width: 100%;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 11px 0;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 8px;
+}
+.workspace-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.workspace-hint {
+  margin-top: 14px;
+  font-size: 10px;
+  color: var(--fg-dim);
+  text-align: center;
+}

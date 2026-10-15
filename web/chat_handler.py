@@ -28,23 +28,25 @@ from web.message_utils import (
 logger = logging.getLogger(__name__)
 
 
+# 工作区未选择时拒绠启 Agent loop 的统一提示
+WORKSPACE_NOT_READY = "尚未选择工作区，请先在页面选择工作区文件夹后再发送消息"
+
+
 def create_agent():
     """
-    创建Agent实例的工厂函数
+    创建Agent实例的工厂函数（需先选择工作区）
 
     返回:
         配置好的Agent实例
+
+    异常:
+        RuntimeError: 尚未选择工作区
     """
     return agent_set.create_agent()
 
 
-# 创建全局Agent实例
-agent = create_agent()
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# ChatHandler 类 - 聊天处理器
-# ═══════════════════════════════════════════════════════════════════════
+# ChatHandler 通过 agent_set.get_agent() 按工作区动态获取 Agent 实例；
+# 不再在模块导入时创建全局单例（未选工作区时无法创建）
 
 
 class ChatHandler:
@@ -145,6 +147,9 @@ class ChatHandler:
 
         thread_id = self.current_thread_id
 
+        # 按工作区动态获取 Agent（工作区切换后自动跟随新实例）
+        agent = agent_set.get_agent()
+
         # 如果线程没有历史记录，初始化为空列表
         if thread_id not in self.message_history:
             self.message_history[thread_id] = []
@@ -185,6 +190,9 @@ class ChatHandler:
             content: 用户输入的内容
         """
         thread_id = self.current_thread_id
+
+        # 按工作区动态获取 Agent（未选工作区时抛 RuntimeError，由调用方拦截）
+        agent = agent_set.get_agent()
 
         # 如果线程没有历史记录，从持久化历史(JSONL)加载，保证多轮对话上下文
         if thread_id not in self.message_history or not self.message_history[thread_id]:

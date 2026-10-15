@@ -43,6 +43,7 @@ from web.api.intelligence_api import router as intelligence_router
 from web.api.meta_api import router as meta_router
 from web.api.rss_api import router as rss_router
 from web.api.session_api import router as session_router
+from web.api.workspace_api import router as workspace_router
 from web.background_tasks import alert_checker, rss_checker
 from web.intelligence.trends import shutdown_executor
 from web.paths import STATIC_DIR
@@ -148,6 +149,7 @@ app.include_router(intelligence_router)
 app.include_router(alert_router)
 app.include_router(rss_router)
 app.include_router(canvas_router)
+app.include_router(workspace_router)
 
 
 @app.get("/")

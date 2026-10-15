@@ -5,6 +5,9 @@
 // 初始化聊天
 newChat();
 
+// 工作区初始化：未选择工作区时弹出选择页阻断 Agent loop
+initWorkspace();
+
 // 加载技能和工具
 loadSkills();
 loadTools();

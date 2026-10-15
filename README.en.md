@@ -65,11 +65,12 @@ onekiil4all/
 │       ├── rss_manager.py    # RSS subscription store
 │       └── rss_parser.py     # Shared RSS/Atom parsing
 ├── agent_set/                # Agent components
-│   ├── agent_set.py          # Agent creation
+│   ├── agent_set.py          # Agent creation (CompositeBackend workspace routing)
+│   ├── workspace.py          # Workspace state (folder required before chatting; persisted to data/workspace.json)
 │   ├── tools/                # Tool set package (split by responsibility)
 │   │   ├── __init__.py       # Tool list export
 │   │   ├── shell.py          # PowerShell command execution
-│   │   ├── files.py          # File read/write
+│   │   ├── files.py          # File read/write (paths anchored to current workspace)
 │   │   └── search.py         # Web search + RSS fetch│   │   ├── graphrag.py       # Board status + GraphRAG search + graph write tools
 │   │   └── todo.py           # Task list read/update tools│   └── skill_set.py          # Skill configuration
 ├── model_set/                # Model configuration
@@ -140,6 +141,10 @@ The system includes multiple built-in tools:
 | graph_add_edge | Write/update a relationship edge (uppercase relations like USES/STAGE/PERSONA) |
 
 > Note: `graphrag_query` only works when the current board is **saved**; otherwise it returns guidance. Agent queries follow the current board automatically after switching. `graph_add_node` / `graph_add_edge` only require a board to be **open** (writes flip the board to unsaved, which is expected — batch writes are fine, the user saves once in CANVAS at the end); **the Agent must obtain user consent before writing**.
+
+### Workspace-First Design
+
+Before entering the agent loop, the page requires the user to pick a **workspace folder** (`agent_set/workspace.py`, persisted to `data/workspace.json`, switchable anytime via the header badge). The agent's file backend is a `CompositeBackend`: the default backend is anchored to the workspace, while `/prompt/` and `/skills/` prefixes are fixed routes to the project's `prompt/` and `skills/` directories. All built-in file tools (`ls / read_file / write_file / edit_file / glob / grep / delete`) operate on the **real disk**, artifacts are saved inside the workspace by default, and files written are immediately readable/editable/searchable. If no workspace is selected, the chat API returns 409 and the picker reopens.
 
 ### 4. Intelligence Panel
 

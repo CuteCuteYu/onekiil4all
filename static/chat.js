@@ -23,6 +23,15 @@ async function newChat() {
 async function sendMessage(text) {
   if (!text.trim()) return;
 
+  // 工作区门槛：未选择工作区时引导用户先选择，不进入 Agent loop
+  if (!workspacePath) {
+    appendProgressMessage('请先选择工作区文件夹，Agent 产物将保存在该文件夹中', 'info');
+    openWorkspacePicker();
+    // 把被拦截的消息放回输入框，选完工作区后可直接重发
+    $input.value = text;
+    return;
+  }
+
   setBusyState(true);
   setLoading(true, 'processing');
   // Agent 运行中显示 STOP 按钮，隐藏 SEND
@@ -46,7 +55,20 @@ async function sendMessage(text) {
       signal: controller.signal,
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      // 409 = 未选择工作区：读取 detail 并弹选择页
+      if (response.status === 409) {
+        let detail = '尚未选择工作区';
+        try {
+          const err = await response.json();
+          detail = err.detail || detail;
+        } catch (_) { /* 忽略解析失败 */ }
+        appendProgressMessage(detail, 'error');
+        openWorkspacePicker();
+        throw new Error(detail);
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
