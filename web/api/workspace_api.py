@@ -5,9 +5,11 @@ Workspace API - 工作区路由
 功能: 工作区状态查询与设置。
 Agent 初始化前必须先选择工作区文件夹，
 之后所有产物默认保存在该文件夹中。
+Browse 支持由后端弹出系统原生文件夹选择框。
  作者: CuteCuteYu
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -26,6 +28,33 @@ class WorkspaceRequest(BaseModel):
     path: str  # 用户选择的文件夹路径
 
 
+def _pick_folder_dialog() -> str | None:
+    """
+    弹出 Windows 系统原生文件夹选择框（阻塞式，需在线程中调用）
+
+    返回:
+        用户选择的文件夹绝对路径；取消时返回 None
+
+    异常:
+        RuntimeError: 非 Windows 平台或缺少 pywin32
+    """
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as e:
+        raise RuntimeError("当前环境不支持图形文件夹选择（缺少 tkinter）") from e
+
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)  # 保证对话框置顶
+    try:
+        root.update_idletasks()
+        folder = filedialog.askdirectory(title="选择工作区文件夹")
+    finally:
+        root.destroy()
+    return folder or None
+
+
 @router.get("/api/workspace")
 async def api_get_workspace():
     """
@@ -37,6 +66,23 @@ async def api_get_workspace():
     """
     ws = workspace.get_workspace()
     return {"ready": ws is not None, "workspace": str(ws) if ws else None}
+
+
+@router.get("/api/workspace/browse")
+async def api_browse_workspace():
+    """
+    弹出系统文件夹选择框（BROWSE 按钮调用）
+
+    对话框为模态阻塞，放到线程池避免卡住事件循环。
+
+    返回:
+        {"path": str | None} 取消时 path 为 None
+    """
+    try:
+        folder = await asyncio.to_thread(_pick_folder_dialog)
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+    return {"path": folder}
 
 
 @router.post("/api/workspace")

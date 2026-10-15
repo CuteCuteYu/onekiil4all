@@ -144,7 +144,7 @@ The system includes multiple built-in tools:
 
 ### Workspace-First Design
 
-Before entering the agent loop, the page requires the user to pick a **workspace folder** (`agent_set/workspace.py`, persisted to `data/workspace.json`, switchable anytime via the header badge). The agent's file backend is a `CompositeBackend`: the default backend is anchored to the workspace, while `/prompt/` and `/skills/` prefixes are fixed routes to the project's `prompt/` and `skills/` directories. All built-in file tools (`ls / read_file / write_file / edit_file / glob / grep / delete`) operate on the **real disk**, artifacts are saved inside the workspace by default, and files written are immediately readable/editable/searchable. If no workspace is selected, the chat API returns 409 and the picker reopens.
+Before entering the agent loop, the page requires the user to pick a **workspace folder** (`agent_set/workspace.py`, persisted to `data/workspace.json`). Every time a new session id is generated (first visit or clicking NEW), the picker reopens and the user must confirm before chatting; the header badge allows manual switching anytime. The picker accepts a typed path, or click BROWSE to open a native OS folder dialog served by the backend (`GET /api/workspace/browse`; cancelling leaves the input untouched). The agent's file backend is a `CompositeBackend`: the default backend is anchored to the workspace, while `/prompt/` and `/skills/` prefixes are fixed routes to the project's `prompt/` and `skills/` directories. All built-in file tools (`ls / read_file / write_file / edit_file / glob / grep / delete`) operate on the **real disk**, artifacts are saved inside the workspace by default, and files written are immediately readable/editable/searchable. If no workspace is selected, the chat API returns 409 and the picker reopens.
 
 ### 4. Intelligence Panel
 
@@ -392,6 +392,8 @@ curl -X POST http://localhost:8000/api/rss \
 Exit steps:
 1. Close browser tab (or refresh to disconnect SSE connections)
 2. Press Ctrl+C to exit
+
+If Ctrl+C does not work, run `stop.bat` (Windows) / `./stop.sh` (Linux/macOS). It kills the port listener, any process whose command line contains `web.web_server`, **and uvicorn reloader orphan workers** (command line contains only `spawn_main`; the port owner PID may point at an already-dead parent), then polls until the port is actually free.
 
 ## Performance Optimization
 

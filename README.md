@@ -251,7 +251,7 @@ onekiil4all/
 
 工具名带服务器前缀（`<server>_<tool>`）。可用 `GET /api/mcp` 查看配置，详见 `mcp/README.md`。
 
-**文件工具与工作区**：进入 Agent 会话前，页面会强制要求先选择一个**工作区文件夹**（`agent_set/workspace.py` 管理状态，持久化到 `data/workspace.json`，页头徽章可随时切换）。Agent 使用 `CompositeBackend`：默认后端锚定工作区，`/prompt/` 与 `/skills/` 前缀固定映射到项目内 `prompt/`、`skills/` 目录，因此内置的 `ls / read_file / write_file / edit_file / glob / grep / delete` 全部作用于**真实磁盘**，所有产物默认保存在工作区内，写入的文件可立即被读取/编辑/检索。未选择工作区时聊天接口返回 409 并重新弹出选择页。
+**文件工具与工作区**：进入 Agent 会话前，页面会强制要求先选择一个**工作区文件夹**（`agent_set/workspace.py` 管理状态，持久化到 `data/workspace.json`）。每次生成新会话标识（首次进入或点击 NEW）都会重新弹出选择页，用户确认后才能开始对话；页头徽章可随时手动切换。选择页支持手动输入路径，或点击 BROWSE 由后端弹出系统原生文件夹选择框（`GET /api/workspace/browse`，取消不影响输入框）。Agent 使用 `CompositeBackend`：默认后端锚定工作区，`/prompt/` 与 `/skills/` 前缀固定映射到项目内 `prompt/`、`skills/` 目录，因此内置的 `ls / read_file / write_file / edit_file / glob / grep / delete` 全部作用于**真实磁盘**，所有产物默认保存在工作区内，写入的文件可立即被读取/编辑/检索。未选择工作区时聊天接口返回 409 并重新弹出选择页。
 
 ## 快速开始
 
@@ -468,7 +468,7 @@ curl -X POST http://localhost:8000/api/rss \
 
 服务配置了 `timeout_graceful_shutdown=5`（5 秒优雅关闭超时），即使浏览器保持 SSE 长连接，Ctrl+C 后也会在超时后强制退出，不会卡住。
 
-> **停止不掉的兜底**：若 Ctrl+C 无效，执行 `stop.bat` / `./stop.sh`。它会同时结束「占用该端口的进程」和「命令行含 `web.web_server` 的进程」，并在结束后轮询确认端口已释放。
+> **停止不掉的兜底**：若 Ctrl+C 无效，执行 `stop.bat` / `./stop.sh`。它会同时结束「占用该端口的进程」、「命令行含 `web.web_server` 的进程」以及「uvicorn reloader 遗留的孤儿 worker（命令行仅含 `spawn_main`，端口归属可能指向已死的父进程）」，并在结束后轮询确认端口已释放。
 
 > **热重载说明**：`reload=True` 下修改代码会触发自动重载。由于 SSE 长连接会让旧 worker 无法优雅关闭，优雅关闭超时确保重载在 5 秒内完成，避免服务卡死（历史上曾因 SSE 连接导致重载无限等待、页面转圈）。启动脚本默认 `RELOAD=0`（关闭热重载），以避免 reloader 派生 worker 在异常中断后变成孤儿进程占住端口。
 
@@ -533,7 +533,7 @@ A: 模型认证失败。请确认启动服务时使用的是真实 `ANTHROPIC_AU
 A: Windows 上常见，原因是多了一层进程：`uv run` 的包装进程会吞掉 Ctrl+C；uvicorn 的 `reload=True` 会派生 worker，父进程被打断后 worker 可能变成孤儿（端口 owner 指向已死的父 PID）。处理方式：
 
 1. 用启动脚本（`start.bat` / `start.sh`）——它们直接调用 `.venv` 的解释器，且默认 `RELOAD=0`；
-2. 仍然停不掉时执行 `stop.bat` / `./stop.sh`：它会按「端口占用者 + 命令行含 web.web_server」双重规则结束进程，并确认端口已释放。
+2. 仍然停不掉时执行 `stop.bat` / `./stop.sh`：它会按「端口占用者 + 命令行含 web.web_server + 孤儿 spawn_main worker」三重规则结束进程，并确认端口已释放。
 
 ### Q: 前端什么都不显示 / 看不到回答？
 

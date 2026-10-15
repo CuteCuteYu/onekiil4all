@@ -14,6 +14,8 @@ async function newChat() {
         <div class="empty-state-sub">send a message to begin</div>
       </div>
     `;
+    // 新会话生成新 thread 标识：要求用户（重新）确认工作区
+    requireWorkspaceForSession();
     return data;
   } catch (e) {
     console.error('Failed to create new chat:', e);

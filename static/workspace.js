@@ -83,7 +83,7 @@ async function confirmWorkspace() {
   }
 }
 
-/** 初始化：查询后端工作区状态，未选择则弹遮罩阻断使用 */
+/** 初始化：同步后端工作区状态到本地（徽章 + workspacePath 缓存） */
 async function initWorkspace() {
   try {
     const res = await fetch(`${API}/api/workspace`);
@@ -91,12 +91,19 @@ async function initWorkspace() {
     if (data.ready && data.workspace) {
       workspacePath = data.workspace;
       renderWorkspaceBadge();
-      return;
     }
   } catch (e) {
     console.error('Failed to query workspace:', e);
   }
-  // 未选择工作区：显示选择页，阻断 Agent loop
+}
+
+/**
+ * 新会话要求选择工作区：
+ * thread 标识重新生成（首次进入 / 点击 NEW）时调用，
+ * 同步服务端状态后弹出选择页（预填当前路径，用户确认后才可继续）。
+ */
+async function requireWorkspaceForSession() {
+  await initWorkspace();
   openWorkspacePicker();
 }
 
@@ -114,10 +121,26 @@ $wsInput.addEventListener('keydown', (e) => {
   }
 });
 
-// 浏览按钮：通过 Web目录 API 探测常见根路径提示，主要仍靠手动输入
-$wsBrowse.addEventListener('click', () => {
-  $wsInput.focus();
-  const current = $wsInput.value.trim();
-  const guess = current || 'D:\\workspace';
-  $wsInput.value = guess;
+// 浏览按钮：请求后端弹出系统原生文件夹选择框，选中即回填路径
+$wsBrowse.addEventListener('click', async () => {
+  const original = $wsBrowse.textContent;
+  $wsBrowse.disabled = true;
+  $wsBrowse.textContent = '...';
+  try {
+    const res = await fetch(`${API}/api/workspace/browse`);
+    const data = await res.json();
+    if (res.ok && data.path) {
+      $wsInput.value = data.path;
+      hideWorkspaceError();
+      $wsConfirm.focus();
+    } else if (res.status === 501) {
+      showWorkspaceError(data.detail || '当前环境不支持图形选择，请手动输入路径');
+    }
+    // 用户取消对话框时保持输入框不变
+  } catch (e) {
+    showWorkspaceError(`连接失败: ${e.message}`);
+  } finally {
+    $wsBrowse.disabled = false;
+    $wsBrowse.textContent = original;
+  }
 });

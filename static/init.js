@@ -2,11 +2,8 @@
  * 上古必斩必杀 初始化和事件绑定
  */
 
-// 初始化聊天
+// 初始化聊天（newChat 内部会在生成新 thread 标识后要求选择工作区）
 newChat();
-
-// 工作区初始化：未选择工作区时弹出选择页阻断 Agent loop
-initWorkspace();
 
 // 加载技能和工具
 loadSkills();

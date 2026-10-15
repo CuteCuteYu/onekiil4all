@@ -46,8 +46,10 @@ elif command -v fuser >/dev/null 2>&1; then
     PIDS="${PIDS} $(fuser -n tcp "${PORT}" 2>/dev/null || true)"
 fi
 
-# 2) 兜底：本项目的服务进程
+# 2) 兜底：本项目的服务进程 + uvicorn reloader 的孤儿 worker
+#    （spawn worker 命令行只有 spawn_main，不含 web.web_server）
 PIDS="${PIDS} $(pgrep -f 'web\.web_server' 2>/dev/null || true)"
+PIDS="${PIDS} $(pgrep -f 'spawn_main' 2>/dev/null || true)"
 
 TARGETS="$(printf '%s\n' ${PIDS} | tr -s ' ' '\n' | grep -E '^[0-9]+$' | sort -u | grep -vx "$$" || true)"
 
