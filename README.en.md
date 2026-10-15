@@ -64,8 +64,8 @@ onekiil4all/
 │   │   ├── __init__.py       # Tool list export
 │   │   ├── shell.py          # PowerShell command execution
 │   │   ├── files.py          # File read/write
-│   │   └── search.py         # Web search + RSS fetch
-│   └── skill_set.py          # Skill configuration
+│   │   └── search.py         # Web search + RSS fetch│   │   ├── graphrag.py       # Board status + GraphRAG search + graph write tools
+│   │   └── todo.py           # Task list read/update tools│   └── skill_set.py          # Skill configuration
 ├── model_set/                # Model configuration
 │   └── model_set.py          # Model configuration (ANTHROPIC_* env vars)
 ├── static/                   # Frontend static resources
@@ -88,11 +88,14 @@ onekiil4all/
 │       ├── alerts.js         # Alert functionality
 │       ├── links.js          # Association search
 │       ├── rss.js            # RSS subscription
-│       └── security.js       # Security intelligence
+│       └── profile.js       # Message psychology profiling
 ├── tests/                    # pytest tests
 ├── data/                     # Runtime data storage (generated, gitignored)
 ├── prompt/                   # Prompt configuration
 │   └── AGENTS.md             # Agent system prompts
+├── skills/                   # Project-local skills (one folder + SKILL.md each)
+│   ├── osint-recon/          # Built-in: OSINT intelligence gathering workflow
+│   └── se-psych-profile/     # Built-in: SE message psychology profiling framework
 ├── chat_history/             # Conversation history storage (runtime, gitignored)
 ├── pyproject.toml            # Project configuration
 └── README.en.md              # Project documentation
@@ -127,8 +130,10 @@ The system includes multiple built-in tools:
 | web_search | Search the web using DuckDuckGo |
 | graphrag_status | Check current intelligence board status (board name / saved state / counts) |
 | graphrag_query | GraphRAG search of current board entities (name/type/description/properties/sources) |
+| graph_add_node | Write/update an entity node on the current board (SE analysis sedimentation; works whenever a board is open, batch-friendly) |
+| graph_add_edge | Write/update a relationship edge (uppercase relations like USES/STAGE/PERSONA) |
 
-> Note: `graphrag_query` only works when the current board is **saved**; otherwise it returns guidance. Agent queries follow the current board automatically after switching.
+> Note: `graphrag_query` only works when the current board is **saved**; otherwise it returns guidance. Agent queries follow the current board automatically after switching. `graph_add_node` / `graph_add_edge` only require a board to be **open** (writes flip the board to unsaved, which is expected — batch writes are fine, the user saves once in CANVAS at the end); **the Agent must obtain user consent before writing**.
 
 ### 4. Intelligence Panel
 
@@ -137,6 +142,7 @@ The system includes multiple built-in tools:
   - ALERTS: Keyword monitoring and alerts
   - LINKS: Keyword association analysis
   - RSS: Custom RSS subscription
+  - PROFILE: Message psychology profiling (see section 8)
 - All items are clickable and link to original pages
 
 ### 5. Keyword Monitoring & Alerts
@@ -172,12 +178,15 @@ The system includes multiple built-in tools:
 - **Instant Display**: articles are fetched and shown immediately after adding a source, no manual refresh needed (background task still updates periodically)
 - **Duplicate Detection**: Same URL (case-insensitive) cannot be added, shows "URL already exists"
 
-### 8. Security Intelligence
+### 8. Message Psychology Profiling (PROFILE / Social-Engineering Defense Analysis)
 
-- **IP Lookup**: Query IP geolocation and ISP (links to Chinaz)
-- **WHOIS Query**: Query domain registration info (links to Chinaz)
-- **CVE Lookup**: Query CVE vulnerability details (Aliyun AVD)
-- **Site Security**: Check website security status (links to Chinaz)
+In the **PROFILE** tab of the INTELLIGENCE panel, paste a suspicious message sample (chat log / SMS / email / customer-service conversation) to generate a **defense-only** psychology profiling report:
+
+- **Seven-section report**: ① script-stage determination ② impersonated persona archetype ③ psychological-lever hit table (authority/urgency/fear/greed/social-proof/reciprocity/isolation/shame, with original-text citations and intensity) ④ sentence-by-sentence annotation of manipulation tactics and flaws ⑤ group-level susceptibility assessment (which groups are at risk, never specific individuals) ⑥ detection & response tips (e.g. 96110 hotline, 24h cooling-off) ⑦ confidence & limitations
+- **Built-in analysis framework**: the `skills/se-psych-profile/` skill ships a psychological-lever checklist, five-stage script model and persona archetype library; the Agent follows it automatically
+- **Red lines**: analysis only, never generation — refuses to write/optimize any manipulation scripts, no psychological profiles of real individuals, group-level assessment only
+- **Sediment to CANVAS**: after the report, one click writes the fraud pattern / levers / stages / persona into the intelligence board (with user consent, via `graph_add_node` / `graph_add_edge`, FraudPattern as the hub with USES/STAGE/PERSONA relations)
+- **Visible failures**: model-call failures now show an explicit error in the panel instead of an empty success card (the chat area shows the red error too)
 
 ### 10. Intelligence Board (CANVAS / GraphRAG)
 
@@ -186,11 +195,11 @@ Integrated from GraphRAG Viz, available in the **CANVAS** tab of the INTELLIGENC
 - **Multi-board management**: each board is a standalone JSON file (`data/graphs/*.json`); create / switch / rename / delete
 - **Graph visualization**: Cytoscape force-directed layout, drag/zoom/pan/fit
 - **Entity & relationship editing**: add/edit entities (GraphRAG description, properties, source chunks), drag-to-connect or manual relationship creation
-- **Entity type management**: 10 built-in intel entity types (ThreatActor / Malware / Domain / IP, etc.) plus custom types (name/label/color/shape)
+- **Entity type management**: 14 built-in entity types (10 technical intel types ThreatActor / Malware / Domain / IP, etc. + 4 social-engineering types FraudPattern / PsychLever / ScriptStage / Persona) plus custom types (name/label/color/shape); legacy boards auto-backfill newly added built-in types on open
 - **Intel drill-down**: click a node for full details; right-click to 1-hop expand, generate RAG context, or delete
 - **GraphRAG retrieval**: generate 1~2 hop semantic triplets Prompt Context and export standard GraphRAG index (MS GraphRAG / LlamaIndex compatible)
 - **Saved-state check**: chat header shows `● GRAPH RAG · board` (saved/connected) or `○ not saved`; board toolbar shows saved/unsaved badge
-- **Agent auto-connect**: once the board is **saved**, the Agent gains `graphrag_status` / `graphrag_query` tools to answer questions about board entities; if unsaved, it prompts you to save first
+- **Agent auto-connect**: once the board is **saved**, the Agent can use `graphrag_status` / `graphrag_query` to answer questions about board entities; `graph_add_node` / `graph_add_edge` work whenever a board is open (batch sedimentation: writes flip the board to unsaved, which is expected — save once at the end)
 
 ### 9. Frontend Features
 
@@ -436,5 +445,3 @@ MIT License
 - [DeepAgents](https://github.com/deepagents) - Agent framework
 - Weibo/Baidu/Toutiao/Bilibili/Douyin - hot search data sources
 - [HackerNews API](https://github.com/HackerNews/API) - tech news data source
-- [Chinaz](https://www.chinaz.com/) - IP lookup, WHOIS, website security scanning
-- [Aliyun AVD](https://avd.aliyun.com/) - CVE vulnerability database

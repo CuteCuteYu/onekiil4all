@@ -176,7 +176,7 @@ onekiil4all/
 │       ├── alerts.js       # Alert functionality
 │       ├── links.js        # Association search
 │       ├── rss.js          # RSS subscription
-│       └── security.js     # Security intelligence
+│       └── profile.js      # 消息心理画像
 ├── tests/                    # pytest tests
 ├── data/                     # Runtime data storage (generated, gitignored)
 ├── prompt/                   # Agent memory / system prompt (AGENTS.md)

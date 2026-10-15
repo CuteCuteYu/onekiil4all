@@ -11,7 +11,12 @@ Tools - 工具集包
 """
 
 from agent_set.tools.files import read_binary_file, read_text_file, write_file
-from agent_set.tools.graphrag import graphrag_query, graphrag_status
+from agent_set.tools.graphrag import (
+    graph_add_edge,
+    graph_add_node,
+    graphrag_query,
+    graphrag_status,
+)
 from agent_set.tools.search import fetch_rss_feed, web_search
 from agent_set.tools.shell import run_powershell
 from agent_set.tools.todo import read_todo, update_todo
@@ -26,6 +31,8 @@ tools = [
     web_search,  # 网络搜索
     graphrag_status,  # 图谱画板接入状态检查
     graphrag_query,  # 图谱画板 GraphRAG 检索
+    graph_add_node,  # 图谱画板实体写入（画像/调查结果入图）
+    graph_add_edge,  # 图谱画板关系写入
     read_todo,  # 读取当前会话任务清单
     update_todo,  # 更新任务清单完成状态
 ]

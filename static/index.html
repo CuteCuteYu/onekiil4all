@@ -22,7 +22,7 @@
   <!-- 引入highlight.js代码高亮主题 (GitHub Dark Dimmed) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark-dimmed.min.css">
   <!-- 引入本地自定义样式文件 -->
-  <link rel="stylesheet" href="/static/style.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=4">
   <!-- 图谱画板（GraphRAG Viz）样式 -->
   <link rel="stylesheet" href="/static/canvas.css?v=1">
 </head>
@@ -156,13 +156,13 @@
           <!-- 刷新热点资讯按钮 -->
           <button class="btn-icon" id="btn-refresh-trends">REFRESH</button>
         </div>
-        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/安全/画板) -->
+        <!-- 热点资讯标签页切换 (热搜/告警/关联/RSS/画像/画板) -->
         <div class="intelligence-tabs">
           <button class="tab-btn active" data-tab="hotsearch">HOT</button>
           <button class="tab-btn" data-tab="alerts">ALERTS<span class="tab-badge" id="alert-unread-badge" hidden></span></button>
           <button class="tab-btn" data-tab="links">LINKS</button>
           <button class="tab-btn" data-tab="rss">RSS</button>
-          <button class="tab-btn" data-tab="security">SECURITY</button>
+          <button class="tab-btn" data-tab="profile">PROFILE</button>
           <button class="tab-btn" data-tab="canvas">CANVAS</button>
         </div>
         <!-- 热点资讯内容区域 -->
@@ -216,37 +216,18 @@
               <div class="list-empty">添加订阅源后显示文章</div>
             </div>
           </div>
-          <!-- 安全情报面板 -->
-          <div class="tab-panel" id="tab-security">
-            <div class="security-tools">
-              <div class="security-tool-item">
-                <div class="tool-name">IP归属地查询</div>
-                <div class="tool-desc">查询IP地址的归属地、运营商等信息</div>
-                <input type="text" id="security-ip-input" placeholder="输入IP地址...">
-                <button class="btn-query" id="btn-query-ip">查询</button>
-                <a href="https://ip.chinaz.com/" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
+          <!-- 消息心理画像面板 -->
+          <div class="tab-panel" id="tab-profile">
+            <div class="profile-input-area">
+              <textarea id="profile-input" placeholder="粘贴可疑消息样本（聊天记录/短信/邮件），提交后生成心理画像报告..." rows="5"></textarea>
+              <div class="profile-actions">
+                <button class="btn-profile-clear" id="btn-profile-clear">CLEAR</button>
+                <button class="btn-profile-submit" id="btn-profile-submit">ANALYZE</button>
               </div>
-              <div class="security-tool-item">
-                <div class="tool-name">WHOIS查询</div>
-                <div class="tool-desc">查询域名的注册信息、过期时间等</div>
-                <input type="text" id="security-domain-input" placeholder="输入域名...">
-                <button class="btn-query" id="btn-query-whois">查询</button>
-                <a href="https://whois.chinaz.com/" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
-              </div>
-              <div class="security-tool-item">
-                <div class="tool-name">CVE漏洞查询</div>
-                <div class="tool-desc">查询CVE漏洞编号获取详细信息</div>
-                <input type="text" id="security-cve-input" placeholder="输入CVE编号，如CVE-2024-0001">
-                <button class="btn-query" id="btn-query-cve">查询</button>
-                <a href="https://avd.aliyun.com/" target="_blank" rel="noopener noreferrer" class="btn-link">阿里云漏洞库</a>
-              </div>
-              <div class="security-tool-item">
-                <div class="tool-name">网站安全检测</div>
-                <div class="tool-desc">检测网站安全状况、漏洞等</div>
-                <input type="text" id="security-site-input" placeholder="输入网站地址...">
-                <button class="btn-query" id="btn-query-site">检测</button>
-                <a href="https://tool.chinaz.com/webscan" target="_blank" rel="noopener noreferrer" class="btn-link">站长工具</a>
-              </div>
+            </div>
+            <div class="profile-hint">仅做识别分析，不生成话术；结果可沉淀到 CANVAS 图谱</div>
+            <div class="profile-result" id="profile-result">
+              <div class="list-empty">粘贴消息后点击 ANALYZE</div>
             </div>
           </div>
           <!-- 图谱画板面板 (GraphRAG Viz 集成) -->
@@ -464,7 +445,7 @@
   <script src="/static/state.js?v=3"></script>
   <script src="/static/dom.js?v=3"></script>
   <script src="/static/utils.js?v=3"></script>
-  <script src="/static/chat.js?v=3"></script>
+  <script src="/static/chat.js?v=5"></script>
   <script src="/static/history.js?v=3"></script>
   <script src="/static/todo.js?v=3"></script>
   <script src="/static/skills.js?v=3"></script>
@@ -472,7 +453,7 @@
   <script src="/static/intelligence/alerts.js?v=3"></script>
   <script src="/static/intelligence/links.js?v=3"></script>
   <script src="/static/intelligence/rss.js?v=3"></script>
-  <script src="/static/intelligence/security.js?v=3"></script>
+  <script src="/static/intelligence/profile.js?v=2"></script>
   <script src="/static/canvas.js?v=1"></script>
   <script src="/static/init.js?v=3"></script>
 </body>

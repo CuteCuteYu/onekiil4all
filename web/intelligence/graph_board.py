@@ -84,6 +84,31 @@ DEFAULT_TYPES: dict = {
         "shape": "round-hexagon",
         "builtin": True,
     },
+    # ── 社会工程学心理分析实体（画像沉淀）──
+    "FraudPattern": {
+        "label": "骗术模式",
+        "color": "#ef4444",
+        "shape": "star",
+        "builtin": True,
+    },
+    "PsychLever": {
+        "label": "心理杠杆",
+        "color": "#e879f9",
+        "shape": "diamond",
+        "builtin": True,
+    },
+    "ScriptStage": {
+        "label": "话术阶段",
+        "color": "#38bdf8",
+        "shape": "hexagon",
+        "builtin": True,
+    },
+    "Persona": {
+        "label": "冒充角色原型",
+        "color": "#fbbf24",
+        "shape": "octagon",
+        "builtin": True,
+    },
 }
 
 
@@ -134,9 +159,11 @@ def load_board(name: str) -> None:
         raise GraphBoardError(f"画板不存在: {name}", 404)
     with open(path, "r", encoding="utf-8") as f:
         graph_data = json.load(f)
-    # 兼容旧数据：缺少 types 字段时补默认类型
-    if "types" not in graph_data:
-        graph_data["types"] = dict(DEFAULT_TYPES)
+    # 兼容旧数据：缺少 types 字段时补默认类型；已有 types 时增量补齐缺失的内置类型
+    # （保留用户对已有类型的自定义修改，只追加新增的内置类型，如 SE 实体类型）
+    types = graph_data.setdefault("types", {})
+    for key, spec in DEFAULT_TYPES.items():
+        types.setdefault(key, dict(spec))
     current_board = name
 
 

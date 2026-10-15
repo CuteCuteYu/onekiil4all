@@ -16,6 +16,7 @@ import shutil
 from pathlib import Path
 
 from model_set import model_set
+from web.message_utils import content_to_text
 from web.paths import TODO_DIR
 from web.todo_prompts import build_create_todo_prompt, build_update_todo_prompt
 
@@ -66,9 +67,9 @@ class TodoManager:
         prompt = build_create_todo_prompt(user_request)
 
         try:
-            # 调用AI生成TODO
+            # 调用AI生成TODO（content 可能是块列表，先归一化为纯文本）
             result = model_set.model.invoke(prompt)
-            content = result.content
+            content = content_to_text(result.content)
 
             # 提取JSON部分（处理可能的代码块格式）
             if "```json" in content:
@@ -166,9 +167,9 @@ class TodoManager:
         prompt = build_update_todo_prompt(tasks, response, last_action)
 
         try:
-            # 调用AI更新状态
+            # 调用AI更新状态（content 可能是块列表，先归一化为纯文本）
             result = model_set.model.invoke(prompt)
-            content = result.content
+            content = content_to_text(result.content)
 
             # 提取JSON
             if "```json" in content:

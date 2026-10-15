@@ -14,6 +14,7 @@ import ast
 import logging
 
 from web.conversation import get_todo_manager
+from web.message_utils import content_to_text
 from web.task_cache import get_cached, set_cached
 from web.task_prompts import build_efficient_update_prompt
 
@@ -125,9 +126,9 @@ def _efficient_update_todo(
     prompt = build_efficient_update_prompt(tasks, response, last_action)
 
     try:
-        # 使用较小的max_tokens加快响应
+        # 使用较小的max_tokens加快响应（content 可能是块列表，先归一化为纯文本）
         result = model_set.model.invoke(prompt, max_tokens=50)
-        content = result.content.strip()
+        content = content_to_text(result.content).strip()
 
         # 解析结果
         completed_indices: list[int] = []

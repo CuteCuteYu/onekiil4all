@@ -31,6 +31,10 @@ async function sendMessage(text) {
 
   renderMessage('user', text);
 
+  // 状态提升到 try 外，供 catch/finally 与返回值使用
+  let messageContent = '';
+  let hadError = false;
+
   try {
     const controller = new AbortController();
     currentAbortController = controller;
@@ -47,10 +51,8 @@ async function sendMessage(text) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let messageContent = '';
     let segmentBase = 0;
     let metadata = null;
-    let hadError = false;
 
     removeLoadingMessage();
 
@@ -134,6 +136,8 @@ async function sendMessage(text) {
       console.error('Chat error:', e);
       appendProgressMessage(`错误: ${e.message}`, 'error');
     }
+    // 出错时记录失败标志，最终返回给调用方（如 PROFILE 面板）感知失败
+    hadError = true;
   } finally {
     setBusyState(false);
     setLoading(false);
@@ -151,6 +155,9 @@ async function sendMessage(text) {
       $pendingQueue.classList.remove('active');
     }
   }
+
+  // 返回执行状态，供调用方（PROFILE 面板等）区分成功/失败
+  return { ok: !hadError && !!messageContent, content: messageContent };
 }
 
 function addPendingMessage(text) {

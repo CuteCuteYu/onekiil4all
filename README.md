@@ -97,7 +97,7 @@ onekiil4all/
 │       ├── alerts.js         # 告警功能
 │       ├── links.js          # 关联搜索
 │       ├── rss.js            # RSS订阅
-│       └── security.js       # 安全情报
+│       └── profile.js       # 消息心理画像
 ├── data/                     # 数据存储目录（运行时生成，不入库）
 │   ├── alerts.json           # 告警规则存储
 │   ├── alert_history.json    # 告警历史记录
@@ -108,7 +108,9 @@ onekiil4all/
 ├── prompt/                   # 提示词配置
 │   └── AGENTS.md             # Agent 系统提示（memory，直接从磁盘读取）
 ├── skills/                   # 项目内技能目录（每个技能一个文件夹 + SKILL.md）
-│   └── osint-recon/          # 内置：OSINT 情报搜集流程（提到“搜集/搜索/调查”等触发）
+│   ├── osint-recon/          # 内置：OSINT 情报搜集流程（提到“搜集/搜索/调查”等触发）
+│   └── se-psych-profile/     # 内置：社会工程学消息心理画像（杠杆/阶段/原型分析框架）
+│   └── se-psych-profile/     # 内置：社会工程学消息心理画像（心理杠杆/话术阶段/角色原型）
 ├── mcp/                      # 项目内 MCP 配置（不读 Claude Code/Desktop 全局配置）
 │   ├── mcp.json              # MCP 服务器列表（web / ddg，已实测可用）
 │   └── README.md             # 配置格式 + 国内网络注意事项 + 实测清单
@@ -148,8 +150,10 @@ onekiil4all/
 | web_search | 使用 DuckDuckGo 搜索网络 |
 | graphrag_status | 检查当前情报画板接入状态（画板名/是否已保存/节点关系数） |
 | graphrag_query | GraphRAG 检索当前画板实体（名称/类型/描述/属性/来源），返回实体详情与关联关系 |
+| graph_add_node | 向当前画板写入/更新实体节点（SE 分析沉淀；画板打开即可写，支持批量） |
+| graph_add_edge | 向当前画板写入/更新关系边（USES/STAGE/PERSONA 等大写关系） |
 
-> 说明：`graphrag_query` 仅在当前画板处于「已保存」状态时可用；未保存时返回引导提示。画板切换后 Agent 查询自动跟随当前画板。
+> 说明：`graphrag_query` 仅在当前画板处于「已保存」状态时可用；未保存时返回引导提示。画板切换后 Agent 查询自动跟随当前画板。`graph_add_node` / `graph_add_edge` 只要画板已打开即可写入（写入会使画板变为未保存，属正常现象，可继续批量写入，完成后由用户在 CANVAS 一键保存）；**Agent 写入前必须获得用户同意**。
 
 ### 4. 情报分析面板
 
@@ -158,6 +162,8 @@ onekiil4all/
   - ALERTS：关键词监控和告警
   - LINKS：关键词关联分析
   - RSS：自定义 RSS 订阅源
+  - PROFILE：消息心理画像（见第 8 节）
+  - PROFILE：消息心理画像（见下节）
 - 所有条目可点击跳转原始页面
 
 ### 5. 关键词监控与告警
@@ -193,12 +199,15 @@ onekiil4all/
 - **立即显示**：添加订阅源后立即抓取文章并显示，无需手动刷新（后台仍会按周期自动更新）
 - **重复检测**：相同 URL（忽略大小写）无法重复添加，会提示"URL 已存在"
 
-### 8. 安全情报
+### 8. 消息心理画像（PROFILE / 社工程学防御分析）
 
-- **IP归属地查询**：查询IP归属地、运营商（跳转站长工具）
-- **WHOIS查询**：查询域名注册信息（跳转站长工具）
-- **CVE漏洞查询**：查询CVE漏洞详情（阿里云漏洞库）
-- **网站安全检测**：检测网站安全状况（跳转站长工具）
+在 INTELLIGENCE 面板的 **PROFILE** 标签页，粘贴可疑消息样本（聊天记录/短信/邮件/客服对话），一键生成**纯防御导向**的心理画像报告：
+
+- **七段式报告**：①话术阶段判定 ②冒充角色原型 ③心理杠杆命中表（权威/紧迫/恐惧/贪婪/社会认同/互惠/孤立/羞耻等，附原文引用与强度） ④逐句标注操纵手法与破绽 ⑤群体易感性评估（哪类人群高危，不指向具体个人） ⑥识别与应对要点（如 96110、24h冷静期） ⑦置信度与局限
+- **分析框架内置**：`skills/se-psych-profile/` 技能提供心理杠杆清单、五阶段话术模型、角色原型库，Agent 自动按框架执行
+- **红线约束**：只分析不生成——拒绝编写/优化任何操纵话术，不为真实个人建立心理档案，群体维度评估不指向具体个人
+- **沉淀到 CANVAS**：报告完成后一键把骗术模式/心理杠杆/话术阶段/冒充原型写入情报画板（Agent 征得同意后调用 `graph_add_node` / `graph_add_edge`，以 FraudPattern 为中心连接 USES/STAGE/PERSONA 关系）
+- **失败可见**：模型调用失败时面板明确提示失败，不再显示空白成功卡片（聊天区同步显示红色错误）
 
 ### 9. 前端界面特性
 
@@ -215,15 +224,18 @@ onekiil4all/
 - **多画板管理**：画板以独立 JSON 文件存储（`data/graphs/*.json`），支持创建 / 切换 / 重命名 / 删除
 - **图谱可视化**：Cytoscape 力导向布局，节点自由拖拽、缩放、平移、自适应居中
 - **实体关系编辑**：添加/编辑实体（GraphRAG 描述、属性、文本溯源）、拖拽连线或手动添加关系
-- **实体类型管理**：内置 10 类情报实体（ThreatActor / Malware / Domain / IP 等），可自定义类型（名称/标签/颜色/形状）
+- **实体类型管理**：内置 14 类实体（10 类技术情报实体 ThreatActor / Malware / Domain / IP 等 + 4 类社会工程学实体 FraudPattern 骗术模式 / PsychLever 心理杠杆 / ScriptStage 话术阶段 / Persona 冒充角色原型），可自定义类型（名称/标签/颜色/形状）；旧画板打开时自动增量补齐新增内置类型
 - **情报下钻**：单击节点查看完整信息，右键展开 1 跳邻居、生成 RAG 上下文、删除节点
 - **GraphRAG 检索**：一键生成 1~2 跳子图语义三元组 Prompt Context，导出标准 GraphRAG 索引（兼容 MS GraphRAG / LlamaIndex）
 - **保存状态检查**：聊天头部实时显示 `● GRAPH RAG · 画板名`（已保存/已接入）或 `○ 未保存`，画板工具栏显示 `已保存/未保存` 徽标
-- **Agent 自动接入**：画板「已保存」后，Agent 自动获得 `graphrag_status` / `graphrag_query` 工具，可直接回答画板中的实体关系问题；未保存时提示先保存
+- **Agent 自动接入**：画板「已保存」后，Agent 可用 `graphrag_status` / `graphrag_query` 回答画板中的实体关系问题；`graph_add_node` / `graph_add_edge` 在画板打开时即可写入（批量沉淀场景：写入会使画板变未保存，属正常，完成后统一保存）
 
 ### 11. 项目内技能（Skills）与 MCP 工具
 
-**技能（Skills）**：放在项目内 `skills/` 目录（不再依赖 Claude Code 的 `~/.claude/skills`，可用 `SKILLS_DIR` 环境变量覆盖）。每个技能是一个文件夹 + `SKILL.md`；Agent 先只看到「名称 + description」，命中后才读取正文（渐进式披露）。内置 `skills/osint-recon/`：面向公开信息收集的情报流程，用户提到“搜集/搜索/查找/调查/情报”等词时触发。
+**技能（Skills）**：放在项目内 `skills/` 目录（不再依赖 Claude Code 的 `~/.claude/skills`，可用 `SKILLS_DIR` 环境变量覆盖）。每个技能是一个文件夹 + `SKILL.md`；Agent 先只看到「名称 + description」，命中后才读取正文（渐进式披露）。内置技能：
+
+- `skills/osint-recon/`：面向公开信息收集的情报流程，用户提到“搜集/搜索/查找/调查/情报”等词时触发
+- `skills/se-psych-profile/`：社会工程学消息心理画像分析框架（心理杠杆清单/五阶段话术模型/角色原型库），用户粘贴可疑消息样本要求分析时触发
 
 **MCP 工具**：配置文件为项目内 `mcp/mcp.json`（不读 `~/.claude.json` / `claude_desktop_config.json`）。当前已启用并实测可用：
 
@@ -545,5 +557,3 @@ MIT License
 - [DeepAgents](https://github.com/deepagents) - Agent 框架
 - 微博/百度/头条/B站/抖音 - 热搜榜单数据源
 - [HackerNews API](https://github.com/HackerNews/API) - 科技新闻数据源
-- [站长工具](https://www.chinaz.com/) - IP查询、WHOIS、网站安全检测
-- [阿里云漏洞库](https://avd.aliyun.com/) - CVE漏洞查询
